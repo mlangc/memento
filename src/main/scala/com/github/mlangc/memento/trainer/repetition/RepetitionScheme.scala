@@ -1,12 +1,22 @@
 package com.github.mlangc.memento.trainer.repetition
 
+import cats.data.NonEmptyVector
 import com.github.mlangc.memento.db.model.Score
+import com.github.mlangc.memento.db.model.Translation
 import com.github.mlangc.memento.trainer.model.Question
 import com.github.mlangc.memento.trainer.model.TrainingData
 import scalaz.zio.Task
 
+import scalaz.zio.interop.catz._
+import cats.syntax.traverse._
+import cats.instances.option._
+
 trait RepetitionScheme {
-  def implement(data: TrainingData): Task[Option[RepetitionScheme.Impl]]
+  def implement(data: TrainingData): Task[Option[RepetitionScheme.Impl]] =
+    NonEmptyVector.fromVector(data.translations)
+      .traverse(ts => implement(ts))
+
+  protected def implement(translations: NonEmptyVector[Translation]): Task[RepetitionScheme.Impl]
 }
 
 object RepetitionScheme {

@@ -22,7 +22,10 @@ import scala.io.StdIn
 
 class ConsoleTrainer extends VocabularyTrainer {
   def train(db: VocabularyDb, examiner: Examiner): Task[Unit] =
-    examiner.prepareExam(db).flatMap(runExam)
+    examiner.prepareExam(db).flatMap {
+      case None => Task(println("No data to train on"))
+      case Some(exam) => runExam(exam)
+    }
 
   private def runExam(exam: Exam): Task[Unit] = {
     exam.nextQuestion(doAsk(exam)).flatMap {
@@ -83,7 +86,7 @@ class ConsoleTrainer extends VocabularyTrainer {
     case ":q" => None
     case "?" => Some(Answer.NeedHint)
     case "" => Some(Answer.Blank)
-    case input => Some(Answer.Text(input))
+    case _ => Some(Answer.Text(input))
   }
 }
 

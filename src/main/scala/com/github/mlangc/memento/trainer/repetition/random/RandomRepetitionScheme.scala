@@ -1,9 +1,29 @@
 package com.github.mlangc.memento.trainer.repetition.random
 
-import com.github.mlangc.memento.trainer.model.TrainingData
+import cats.data.NonEmptyVector
+import com.github.mlangc.memento.db.model.Direction
+import com.github.mlangc.memento.db.model.Score
+import com.github.mlangc.memento.db.model.Translation
+import com.github.mlangc.memento.trainer.model.Question
 import com.github.mlangc.memento.trainer.repetition.RepetitionScheme
+import com.github.mlangc.memento.trainer.repetition.RepetitionStatus
 import scalaz.zio.Task
 
-class RandomRepetitionScheme extends RepetitionScheme {
-  def implement(data: TrainingData): Task[Option[RepetitionScheme.Impl]] = ???
+import scala.util.Random
+
+object RandomRepetitionScheme extends RepetitionScheme {
+  def implement(translations: NonEmptyVector[Translation]): Task[RepetitionScheme.Impl] = Task {
+    new RepetitionScheme.Impl {
+      def next: Task[Question] =
+        for {
+          ind <- Task(Random.nextInt(translations.length))
+          translation = translations.getUnsafe(ind)
+          direction <- Task(Random.nextBoolean()).map(Direction.fromBoolean)
+        } yield Question(translation, direction)
+
+      def next(previousQuestion: Question, score: Score): Task[Question] = next
+
+      def status: Task[RepetitionStatus] = Task.succeed(RepetitionStatus.ShouldContinue)
+    }
+  }
 }

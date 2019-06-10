@@ -14,13 +14,26 @@ import scalaz.zio.Ref
 import scalaz.zio.Task
 
 abstract class GenericExaminerTest extends BaseZioTest with OptionValues {
+  "Test with an empty db" in {
+    unsafeRun {
+      val voxData = TestVocabularyData.gerFrEmpty
+      mkExaminer.use { examiner =>
+        for {
+          db <- InMemoryVocabularyDb.make(voxData)
+          exam <- examiner.prepareExam(db)
+          _ <- Task(assert(exam.isEmpty))
+        } yield ()
+      }
+    }
+  }
+
   "Make sure that our examiner is sane" in {
     unsafeRun {
       val voxData = TestVocabularyData.gerFrSimple
       mkExaminer.use { examiner =>
         for {
           db <- InMemoryVocabularyDb.make(voxData)
-          exam <- examiner.prepareExam(db)
+          exam <- examiner.prepareExam(db).flatMap(exam => Task(exam.value))
           _ <- Task {
             assert(exam.language1 === voxData.language1)
             assert(exam.language2 === voxData.language2)

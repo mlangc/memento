@@ -8,17 +8,17 @@ import scalaz.zio.Task
 import scalaz.zio.ZIO
 
 abstract class GenericRepetitionSchemeTest extends BaseZioTest with OptionValues {
-  protected def scheme: Task[RepetitionScheme]
+  protected def scheme: RepetitionScheme
 
   protected final def implFor(data: TrainingData): Task[RepetitionScheme.Impl] =
-    scheme.flatMap(_.implement(data)).flatMap(impl => Task(impl.value))
+    scheme.implement(data).flatMap(impl => Task(impl.value))
 
   "Repeating without any prior training" - {
     "trivial cases" - {
       "an empty db" in {
         unsafeRun {
           for {
-            impl <- scheme.flatMap(_.implement(TestTrainingData.empty))
+            impl <- scheme.implement(TestTrainingData.empty)
             _ <- Task(assert(impl.isEmpty))
           } yield ()
         }

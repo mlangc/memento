@@ -1,4 +1,4 @@
-package com.github.mlangc.memento.trainer.examiner.random
+package com.github.mlangc.memento.trainer
 
 import java.time.Instant
 
@@ -9,10 +9,10 @@ import com.github.mlangc.memento.db.model.Check
 import com.github.mlangc.memento.db.model.Score
 import com.github.mlangc.memento.db.model.Translation
 import com.github.mlangc.memento.db.model.VocabularyData
+import com.github.mlangc.memento.trainer.DefaultExaminer.ExamState
 import com.github.mlangc.memento.trainer.examiner.Exam
 import com.github.mlangc.memento.trainer.examiner.Examiner
 import com.github.mlangc.memento.trainer.examiner.SpellingHinter
-import com.github.mlangc.memento.trainer.examiner.random.RandomExaminer.ExamState
 import com.github.mlangc.memento.trainer.model.Answer
 import com.github.mlangc.memento.trainer.model.Feedback
 import com.github.mlangc.memento.trainer.model.Question
@@ -20,22 +20,19 @@ import com.github.mlangc.memento.trainer.model.ScorableAnswer
 import com.github.mlangc.memento.trainer.model.Synonyms
 import com.github.mlangc.memento.trainer.model.TrainingData
 import com.github.mlangc.memento.trainer.repetition.RepetitionScheme
-import com.github.mlangc.memento.trainer.repetition.random.RandomRepetitionScheme
 import scalaz.zio.Ref
 import scalaz.zio.Semaphore
 import scalaz.zio.Task
 import scalaz.zio.interop.catz._
 
-object RandomExaminer {
-
+object DefaultExaminer {
   private case class ExamState(lastQuestion: Option[Question] = None,
                                lastAnswer: Option[Answer] = None,
                                lastScore: Option[Score] = None,
                                spellingHinter: Option[SpellingHinter] = None)
-
 }
 
-class RandomExaminer extends Examiner {
+class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner {
   def prepareExam(db: VocabularyDb): Task[Option[Exam]] =
     db.load.flatMap(data => mkExam(db, data))
 
@@ -43,8 +40,8 @@ class RandomExaminer extends Examiner {
     val trainingData = TrainingData.convert(data)
 
     for {
-      repetitionScheme <- RandomRepetitionScheme.implement(trainingData)
-      exam <- repetitionScheme.traverse { schemeImpl =>
+      maybeSchemeImpl <- repetitionScheme.implement(trainingData)
+      exam <- maybeSchemeImpl.traverse { schemeImpl =>
         for {
           examStateRef <- Ref.make(ExamState())
           semaphore <- Semaphore.make(1)

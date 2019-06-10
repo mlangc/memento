@@ -7,13 +7,14 @@ import com.github.mlangc.memento.db.google.sheets.GsheetsVocabularyDb
 import com.github.mlangc.memento.db.model.Direction
 import com.github.mlangc.memento.db.model.LanguageName
 import com.github.mlangc.memento.db.model.Score
+import com.github.mlangc.memento.trainer.DefaultExaminer
 import com.github.mlangc.memento.trainer.VocabularyTrainer
 import com.github.mlangc.memento.trainer.examiner.Exam
 import com.github.mlangc.memento.trainer.examiner.Examiner
-import com.github.mlangc.memento.trainer.examiner.random.RandomExaminer
 import com.github.mlangc.memento.trainer.model.Answer
 import com.github.mlangc.memento.trainer.model.Feedback
 import com.github.mlangc.memento.trainer.model.Question
+import com.github.mlangc.memento.trainer.repetition.random.RandomRepetitionScheme
 import scalaz.zio.App
 import scalaz.zio.Task
 import scalaz.zio.ZIO
@@ -104,7 +105,7 @@ object ConsoleTrainer extends App {
 
       db <- GsheetsVocabularyDb.make(sheetId.right.getOrElse(""), new File(credentialsPath.right.getOrElse("")))
       trainer = new ConsoleTrainer
-      _ <- trainer.train(db, new RandomExaminer)
+      _ <- trainer.train(db, new DefaultExaminer(RandomRepetitionScheme))
     } yield 0).orDie
   }
 }

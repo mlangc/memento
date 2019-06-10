@@ -31,7 +31,6 @@ object RandomExaminer {
   private case class ExamState(lastQuestion: Option[Question] = None,
                                lastAnswer: Option[Answer] = None,
                                lastScore: Option[Score] = None,
-                               hintsBeforeLast: Int = 0,
                                spellingHinter: Option[SpellingHinter] = None)
 
 }
@@ -57,7 +56,7 @@ class RandomExaminer extends Examiner {
                 questionAndHinter <- nextQuestion(state, schemeImpl)
                 (question, hinter) = questionAndHinter
                 answer <- ask(question)
-                feedback = answer.map(giveFeedback(question, state.hintsBeforeLast))
+                feedback = answer.map(giveFeedback(question))
                 _ <- safeFeedback(db, question, question.translation, feedback)
                 _ <- examStateRef.update(updateExamState(question, answer, hinter, feedback))
               } yield feedback
@@ -73,17 +72,9 @@ class RandomExaminer extends Examiner {
                               hinter: Option[SpellingHinter],
                               maybeFeedback: Option[Feedback])(state: ExamState): ExamState = {
     maybeAnswer.map { answer =>
-      val hintsBefore = if (question.hint.isEmpty) 0 else {
-        state.hintsBeforeLast + {
-          val lastHint = state.lastQuestion.flatMap(_.hint)
-          if (lastHint.isEmpty || lastHint == question.hint) 0 else 1
-        }
-      }
-
       state.copy(
         lastQuestion = Some(question),
         lastAnswer = Some(answer),
-        hintsBeforeLast = hintsBefore,
         lastScore = maybeFeedback.flatMap(_.maybeScore),
         spellingHinter = hinter)
     }.getOrElse(state)
@@ -91,7 +82,7 @@ class RandomExaminer extends Examiner {
 
   private def nextQuestion(state: ExamState, schemeImpl: RepetitionScheme.Impl): Task[(Question, Option[SpellingHinter])] = {
     state match {
-      case ExamState(Some(lastQuestion), Some(Answer.NeedHint), _, _, _) =>
+      case ExamState(Some(lastQuestion), Some(Answer.NeedHint), _, _) =>
         for {
           spellingHinter <- state.spellingHinter.map(Task.succeed).getOrElse {
             SpellingHinter.make(lastQuestion.rightAnswer.spelling)
@@ -134,9 +125,9 @@ class RandomExaminer extends Examiner {
       } yield ()
   }
 
-  private def giveFeedback(question: Question, hintsSeenBefore: Int)(answer: Answer): Feedback = answer match {
+  private def giveFeedback(question: Question)(answer: Answer): Feedback = answer match {
     case answer: ScorableAnswer =>
-      val score = Examiner.score(question, answer, hintsSeenBefore, Synonyms.None)
+      val score = Examiner.score(question, answer, Synonyms.None)
       Feedback.Correction(question.rightAnswer, score)
 
     case _ => Feedback.Postponed

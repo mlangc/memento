@@ -17,7 +17,7 @@ class ExaminerTest extends BaseTest {
       assert {
         Examiner.score(
           Question(Translation("test", "test"), Direction.RightToLeft, None),
-          Answer.Blank, 0, Synonyms.None) === Score.Zero
+          Answer.Blank, Synonyms.None) === Score.Zero
       }
     }
 
@@ -25,13 +25,13 @@ class ExaminerTest extends BaseTest {
       assert {
         Examiner.score(
           Question(Translation("a", "b"), Direction.LeftToRight, None),
-          Answer.Text("b"), 0, Synonyms.None) === Score.Perfect
+          Answer.Text("b"), Synonyms.None) === Score.Perfect
       }
 
       assert {
         Examiner.score(
           Question(Translation("a", "b"), Direction.RightToLeft, None),
-          Answer.Text("a"), 0, Synonyms.None) === Score.Perfect
+          Answer.Text("a"), Synonyms.None) === Score.Perfect
       }
     }
 
@@ -39,7 +39,7 @@ class ExaminerTest extends BaseTest {
       assert {
         Examiner.score(
           Question(Translation("Lausbub", "scallywag"), Direction.RightToLeft, None),
-          Answer.Text("asdf"), 0, Synonyms.None) === Score.Zero
+          Answer.Text("asdf"), Synonyms.None) === Score.Zero
       }
     }
 
@@ -47,35 +47,49 @@ class ExaminerTest extends BaseTest {
       assert {
         Examiner.score(
           Question(Translation("Lausbub", "scallywag"), Direction.LeftToRight, None),
-          Answer.Text("scalywag"), 0, Synonyms.None) === Score.SoSo
+          Answer.Text("scalywag"), Synonyms.None) === Score.SoSo
       }
     }
 
-    "with a single hint" in {
+    "with small hints" in {
       assert {
         Examiner.score(
-          Question(Translation("Lausbub", "scallywag"), Direction.RightToLeft, Some(Hint("L__", 0.1))),
-          Answer.Text("Lausbub"), 0, Synonyms.None) === Score.SoSo
+          Question(Translation("Lausbub", "scallywag"), Direction.RightToLeft, Some(Hint("L__", 0.15))),
+          Answer.Text("Lausbub"), Synonyms.None) === Score.Good
       }
 
       assert {
         Examiner.score(
-          Question(Translation("Lausbub", "scallywag"), Direction.RightToLeft, Some(Hint("L__", 0.1))),
-          Answer.Text("Lauub"), 0, Synonyms.None) === Score.Zero
+          Question(Translation("Lausbub", "scallywag"), Direction.RightToLeft, Some(Hint("L__", 0.15))),
+          Answer.Text("Lauub"), Synonyms.None) === Score.Zero
       }
     }
 
-    "with two hints" in {
+    "with bigger hints" in {
       assert {
         Examiner.score(
-          Question(Translation("Lausbub", "scallywag"), Direction.RightToLeft, Some(Hint("L__b", 0.1))),
-          Answer.Text("Lausbub"), 1, Synonyms.None) === Score.Poor
+          Question(Translation("Lausbub", "scallywag"), Direction.RightToLeft, Some(Hint("L__b", 0.30))),
+          Answer.Text("Lausbub"), Synonyms.None) === Score.SoSo
       }
 
       assert {
         Examiner.score(
-          Question(Translation("Lausbub", "scallywag"), Direction.RightToLeft, Some(Hint("L__b", 0.1))),
-          Answer.Text("Laub"), 1, Synonyms.None) === Score.Zero
+          Question(Translation("Lausbub", "scallywag"), Direction.RightToLeft, Some(Hint("L__b", 0.30))),
+          Answer.Text("Laub"), Synonyms.None) === Score.Zero
+      }
+    }
+
+    "with strong hints" in {
+      assert {
+        Examiner.score(
+          Question(Translation("Lausbub", "scallywag"), Direction.RightToLeft, Some(Hint("L_ub", 0.45))),
+          Answer.Text("Lausbub"), Synonyms.None) === Score.Poor
+      }
+
+      assert {
+        Examiner.score(
+          Question(Translation("Lausbub", "scallywag"), Direction.RightToLeft, Some(Hint("La_ub", 0.55))),
+          Answer.Text("Lausbub"), Synonyms.None) === Score.Zero
       }
     }
   }

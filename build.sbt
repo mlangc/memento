@@ -4,6 +4,8 @@ version := "1.0.0"
 
 scalaVersion := "2.12.8"
 
+mainClass in (Compile, run) := Some("com.github.mlangc.memento.trainer.console.ConsoleTrainer")
+
 scalacOptions ++= Seq(
   "-deprecation",                      // Emit warning and location for usages of deprecated APIs.
   "-encoding", "utf-8",                // Specify character encoding used by source files.

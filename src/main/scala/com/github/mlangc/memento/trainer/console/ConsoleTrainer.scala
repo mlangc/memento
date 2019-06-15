@@ -3,7 +3,7 @@ package com.github.mlangc.memento.trainer.console
 import java.io.File
 
 import com.github.mlangc.memento.db.VocabularyDb
-import com.github.mlangc.memento.db.google.sheets.GsheetsVocabularyDb
+import com.github.mlangc.memento.db.google.sheets.{GsheetsCfg, GsheetsVocabularyDb}
 import com.github.mlangc.memento.db.model.Direction
 import com.github.mlangc.memento.db.model.LanguageName
 import com.github.mlangc.memento.db.model.Score
@@ -16,6 +16,7 @@ import com.github.mlangc.memento.trainer.repetition.leitner.LeitnerRepetitionSch
 import scalaz.zio.App
 import scalaz.zio.Task
 import scalaz.zio.ZIO
+import com.github.mlangc.memento.util.convenience.syntax.ciris._
 
 import scala.io.StdIn
 
@@ -91,17 +92,11 @@ class ConsoleTrainer extends VocabularyTrainer {
 
 object ConsoleTrainer extends App {
   def run(args: List[String]): ZIO[Environment, Nothing, Int] = {
-    val sheetId = ciris.env[String]("SHEET_ID").value
-    val credentialsPath = ciris.env[String]("GOOGLE_CREDENTIALS_PATH").value
 
     (for {
-      _ <- {
-        if (sheetId.isLeft) Task.fail(new IllegalArgumentException("Please set the SHEET_ID environment variable"))
-        else if (credentialsPath.isLeft) Task.fail(new IllegalArgumentException("Please set the GOOGLE_CREDENTIALS_PATH varialble"))
-        else Task.unit
-      }
-
-      db <- GsheetsVocabularyDb.make(sheetId.right.getOrElse(""), new File(credentialsPath.right.getOrElse("")))
+      sheetId <- GsheetsCfg.sheetId.orDie
+      credentialsPath <- GsheetsCfg.sheetId.orDie
+      db <- GsheetsVocabularyDb.make(sheetId, new File(credentialsPath))
       trainer = new ConsoleTrainer
       _ <- trainer.train(db, new DefaultExaminer(new LeitnerRepetitionScheme))
     } yield 0).orDie

@@ -1,27 +1,15 @@
-package com.github.mlangc.memento.trainer
+package com.github.mlangc.memento.trainer.examiner
 
 import java.time.Instant
 
 import cats.instances.option._
 import cats.syntax.traverse._
 import com.github.mlangc.memento.db.VocabularyDb
-import com.github.mlangc.memento.db.model.Check
-import com.github.mlangc.memento.db.model.Score
-import com.github.mlangc.memento.db.model.VocabularyData
-import com.github.mlangc.memento.trainer.DefaultExaminer.ExamState
-import com.github.mlangc.memento.trainer.examiner.Exam
-import com.github.mlangc.memento.trainer.examiner.Examiner
-import com.github.mlangc.memento.trainer.examiner.SpellingHinter
-import com.github.mlangc.memento.trainer.model.Answer
-import com.github.mlangc.memento.trainer.model.Feedback
-import com.github.mlangc.memento.trainer.model.Question
-import com.github.mlangc.memento.trainer.model.ScorableAnswer
-import com.github.mlangc.memento.trainer.model.Synonyms
-import com.github.mlangc.memento.trainer.model.TrainingData
+import com.github.mlangc.memento.db.model.{Check, Score, VocabularyData}
+import com.github.mlangc.memento.trainer.examiner.DefaultExaminer.ExamState
+import com.github.mlangc.memento.trainer.model._
 import com.github.mlangc.memento.trainer.repetition.RepetitionScheme
-import scalaz.zio.Ref
-import scalaz.zio.Semaphore
-import scalaz.zio.Task
+import scalaz.zio.{Ref, Semaphore, Task}
 import scalaz.zio.interop.catz._
 
 object DefaultExaminer {

@@ -28,7 +28,7 @@ import scalaz.zio.interop.catz._
 import scala.util.Random
 
 
-class LeitnerRepetitionScheme(boxSpecs: NonEmptyVector[BoxSpec],
+class LeitnerRepetitionScheme(boxSpecs: NonEmptyVector[BoxSpec] = BoxSpecs.defaultBoxSpecs,
                               clock: Clock = Clock.systemDefaultZone()) extends RepetitionScheme {
 
   protected def implement(translations: NonEmptyVector[Translation],

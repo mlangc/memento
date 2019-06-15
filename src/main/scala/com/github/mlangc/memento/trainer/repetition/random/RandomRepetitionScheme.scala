@@ -1,8 +1,8 @@
 package com.github.mlangc.memento.trainer.repetition.random
 
 import cats.data.NonEmptyVector
+import com.github.mlangc.memento.db.model.Check
 import com.github.mlangc.memento.db.model.Direction
-import com.github.mlangc.memento.db.model.Score
 import com.github.mlangc.memento.db.model.Translation
 import com.github.mlangc.memento.trainer.model.Question
 import com.github.mlangc.memento.trainer.repetition.RepetitionScheme
@@ -12,7 +12,7 @@ import scalaz.zio.Task
 import scala.util.Random
 
 object RandomRepetitionScheme extends RepetitionScheme {
-  def implement(translations: NonEmptyVector[Translation]): Task[RepetitionScheme.Impl] = Task {
+  def implement(translations: NonEmptyVector[Translation], checks: List[Check]): Task[RepetitionScheme.Impl] = Task {
     new RepetitionScheme.Impl {
       def next: Task[Question] =
         for {
@@ -21,7 +21,7 @@ object RandomRepetitionScheme extends RepetitionScheme {
           direction <- Task(Random.nextBoolean()).map(Direction.fromBoolean)
         } yield Question(translation, direction)
 
-      def next(previousQuestion: Question, score: Score): Task[Question] = next
+      def next(check: Check): Task[Question] = next
 
       def status: Task[RepetitionStatus] = Task.succeed(RepetitionStatus.ShouldContinue)
     }

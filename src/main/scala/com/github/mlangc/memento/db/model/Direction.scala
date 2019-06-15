@@ -1,6 +1,14 @@
 package com.github.mlangc.memento.db.model
 
-sealed trait Direction
+import com.github.mlangc.memento.db.model.Direction.LeftToRight
+import com.github.mlangc.memento.db.model.Direction.RightToLeft
+
+sealed trait Direction {
+  def flip: Direction = this match {
+    case LeftToRight => RightToLeft
+    case RightToLeft => LeftToRight
+  }
+}
 
 object Direction {
   case object LeftToRight extends Direction

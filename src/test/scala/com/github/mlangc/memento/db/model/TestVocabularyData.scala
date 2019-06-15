@@ -5,7 +5,7 @@ import java.time.Instant
 import com.softwaremill.tagging.Tagger
 
 object TestVocabularyData {
-  val gerFrEmpty = VocabularyData(
+  val gerFrEmpty: VocabularyData = VocabularyData(
     language1 = "Deutsch".taggedWith[LanguageNameTag],
     language2 = "Französisch".taggedWith[LanguageNameTag],
     translations = Nil,
@@ -14,8 +14,8 @@ object TestVocabularyData {
     checks = Nil
   )
 
-  def gerFrSimple = gerFrEmpty.copy(
-    translations = Translation("ich", "je") ::
+  def gerFrSimple: VocabularyData = gerFrEmpty.copy(
+    translations = Translation("lobend", "élogieux") ::
       Translation("verbreitet", "répandu") ::
       Translation("schmutzig", "crasseux") ::
       Translation("Abrechnung", "un décompte") ::

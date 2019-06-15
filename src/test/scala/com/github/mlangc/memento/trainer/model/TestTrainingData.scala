@@ -3,9 +3,9 @@ package com.github.mlangc.memento.trainer.model
 import com.github.mlangc.memento.db.model.Translation
 
 object TestTrainingData {
-  val empty = TrainingData(Vector.empty, Map.empty)
-  val enGerSingleElem = TrainingData(Vector(Translation("Nacht", "night")), Map.empty)
+  val empty = TrainingData(Vector.empty, Synonyms(Map(), Map()), Nil)
+  val enGerSingleElem = TrainingData(Vector(Translation("Nacht", "night")), Synonyms(Map(), Map()), Nil)
 
-  val enGerTwoElems = enGerSingleElem.copy(
+  val enGerTwoElems: TrainingData = enGerSingleElem.copy(
     translations = enGerSingleElem.translations :+ Translation("Tag", "day"))
 }

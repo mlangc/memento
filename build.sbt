@@ -59,7 +59,10 @@ libraryDependencies += "org.scalaz" %% "scalaz-zio-streams" % zioVersion
 libraryDependencies += "org.typelevel"  %% "squants"  % "1.3.0"
 
 libraryDependencies += "com.softwaremill.common" %% "tagging" % "2.2.1"
-libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.7" % Test
+
+libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.8" % Test
+libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.14.0" % Test
+
 
 libraryDependencies += "com.google.oauth-client" % "google-oauth-client-jetty" % "1.29.0"
 libraryDependencies += "com.google.apis" % "google-api-services-sheets" % "v4-rev579-1.25.0"
@@ -88,4 +91,8 @@ val enumeratumVersion = "1.5.13"
 libraryDependencies ++= Seq(
   "com.beachape" %% "enumeratum" % enumeratumVersion
 )
+
+libraryDependencies += "com.statemachinesystems" % "mock-clock" % "1.0" % Test
+libraryDependencies += "com.github.mlangc" %% "slf4zio" % "0.1.0-SNAPSHOT"
+
 

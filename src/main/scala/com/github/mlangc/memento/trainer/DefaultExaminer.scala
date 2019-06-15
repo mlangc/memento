@@ -7,7 +7,6 @@ import cats.syntax.traverse._
 import com.github.mlangc.memento.db.VocabularyDb
 import com.github.mlangc.memento.db.model.Check
 import com.github.mlangc.memento.db.model.Score
-import com.github.mlangc.memento.db.model.Translation
 import com.github.mlangc.memento.db.model.VocabularyData
 import com.github.mlangc.memento.trainer.DefaultExaminer.ExamState
 import com.github.mlangc.memento.trainer.examiner.Exam
@@ -29,6 +28,7 @@ object DefaultExaminer {
   private case class ExamState(lastQuestion: Option[Question] = None,
                                lastAnswer: Option[Answer] = None,
                                lastScore: Option[Score] = None,
+                               lastCheck: Option[Check] = None,
                                spellingHinter: Option[SpellingHinter] = None)
 }
 
@@ -54,7 +54,7 @@ class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner {
                 (question, hinter) = questionAndHinter
                 answer <- ask(question)
                 feedback = answer.map(giveFeedback(question))
-                _ <- safeFeedback(db, question, question.translation, feedback)
+                _ <- safeFeedback(db, question, feedback)
                 _ <- examStateRef.update(updateExamState(question, answer, hinter, feedback))
               } yield feedback
             }
@@ -79,7 +79,7 @@ class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner {
 
   private def nextQuestion(state: ExamState, schemeImpl: RepetitionScheme.Impl): Task[(Question, Option[SpellingHinter])] = {
     state match {
-      case ExamState(Some(lastQuestion), Some(Answer.NeedHint), _, _) =>
+      case ExamState(Some(lastQuestion), Some(Answer.NeedHint), _, _, _) =>
         for {
           spellingHinter <- state.spellingHinter.map(Task.succeed).getOrElse {
             SpellingHinter.make(lastQuestion.rightAnswer.spelling)
@@ -88,9 +88,9 @@ class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner {
         } yield (nextQuestion, Some(spellingHinter))
 
       case _ => {
-        (state.lastQuestion, state.lastScore) match {
-          case (Some(lastQuestion), Some(lastScore)) =>
-            schemeImpl.next(lastQuestion, lastScore)
+        state.lastCheck match {
+          case Some(check) =>
+            schemeImpl.next(check)
 
           case _ =>
             schemeImpl.next
@@ -99,11 +99,11 @@ class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner {
     }
   }
 
-  private def toCheck(translation: Translation, question: Question, feedback: Feedback): Task[Option[Check]] = feedback match {
+  private def toCheck(question: Question, feedback: Feedback): Task[Option[Check]] = feedback match {
     case Feedback.Correction(_, score) =>
       Task(Instant.now()).map {
         now =>
-          Some(Check(translation, question.direction, score, now))
+          Some(Check(question.translation, question.direction, score, now))
       }
 
     case _ => Task.succeed(None)
@@ -112,12 +112,11 @@ class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner {
 
   private def safeFeedback(db: VocabularyDb,
                            question: Question,
-                           translation: Translation,
                            maybeFeedback: Option[Feedback]): Task[Unit] = maybeFeedback match {
     case None => Task.unit
     case Some(feedback) =>
       for {
-        check <- toCheck(translation, question, feedback)
+        check <- toCheck(question, feedback)
         _ <- check.map(db.addCheck).getOrElse(Task.unit)
       } yield ()
   }

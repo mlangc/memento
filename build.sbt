@@ -55,10 +55,7 @@ scalacOptions ++= Seq(
 scalacOptions in (Compile, console) --= Seq("-Ywarn-unused:imports", "-Xfatal-warnings")
 
 val zioVersion = "1.0-RC4"
-libraryDependencies += "org.scalaz" %% "scalaz-zio" % zioVersion
 libraryDependencies += "org.scalaz" %% "scalaz-zio-interop-cats" % zioVersion
-libraryDependencies += "org.scalaz" %% "scalaz-zio-streams" % zioVersion
-libraryDependencies += "org.typelevel"  %% "squants"  % "1.3.0"
 
 libraryDependencies += "com.softwaremill.common" %% "tagging" % "2.2.1"
 
@@ -69,8 +66,6 @@ libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.14.0" % Test
 libraryDependencies += "com.google.oauth-client" % "google-oauth-client-jetty" % "1.29.0"
 libraryDependencies += "com.google.apis" % "google-api-services-sheets" % "v4-rev579-1.25.0"
 
-libraryDependencies += "org.typelevel" %% "spire" % "0.14.1"
-
 val catsVersion = "1.6.1"
 libraryDependencies += "org.typelevel" %% "cats-core" % catsVersion
 libraryDependencies += "org.typelevel" %% "cats-effect" % "1.3.1"
@@ -78,15 +73,12 @@ libraryDependencies += "org.typelevel" %% "cats-effect" % "1.3.1"
 val refinedVersion = "0.9.7"
 libraryDependencies ++= Seq(
   "eu.timepit" %% "refined"                 % refinedVersion,
-  "eu.timepit" %% "refined-shapeless"       % refinedVersion
 )
 
 val cirisVersion = "0.12.1"
 
 libraryDependencies ++= Seq(
-  "is.cir" %% "ciris-cats",
   "is.cir" %% "ciris-core",
-  "is.cir" %% "ciris-generic",
 ).map(_ % cirisVersion)
 
 val enumeratumVersion = "1.5.13"
@@ -95,7 +87,8 @@ libraryDependencies ++= Seq(
 )
 
 libraryDependencies += "com.statemachinesystems" % "mock-clock" % "1.0" % Test
-libraryDependencies += "com.github.mlangc" %% "slf4zio" % "0.1.0-SNAPSHOT"
 libraryDependencies += "com.github.vickumar1981" %% "stringdistance" % "1.1.1"
+
+// libraryDependencies += "com.github.mlangc" %% "slf4zio" % "0.1.0-SNAPSHOT"
 
 

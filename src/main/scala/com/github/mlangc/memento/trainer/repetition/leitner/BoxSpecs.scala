@@ -7,7 +7,6 @@ import scala.concurrent.duration._
 
 object BoxSpecs {
   val defaultBoxSpecs: NonEmptyVector[BoxSpec] = NonEmptyVector.of(
-    BoxSpec(5.seconds, Score.Poor),
     BoxSpec(25.seconds, Score.Poor),
     BoxSpec(2.minutes, Score.SoSo),
     BoxSpec(10.minutes, Score.SoSo),

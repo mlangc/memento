@@ -7,8 +7,9 @@ import com.github.mlangc.memento.trainer.model.Question
 import com.github.mlangc.memento.trainer.model.RevealedRatio
 import com.github.mlangc.memento.trainer.model.ScorableAnswer
 import com.github.mlangc.memento.trainer.model.Synonyms
-import scalaz.zio.Task
+import com.github.vickumar1981.stringdistance.StringDistance.Tversky
 import eu.timepit.refined.auto._
+import scalaz.zio.Task
 
 trait Examiner {
   def prepareExam(db: VocabularyDb): Task[Option[Exam]]
@@ -20,14 +21,34 @@ object Examiner {
     case Answer.Text(text) =>
       val rightAnswer = question.rightAnswer.spelling
       val revealedRatio = question.hint.map(_.revealed).getOrElse(0.0: RevealedRatio)
-      val initialScore = if (text == rightAnswer) Score.Perfect else {
-        Score.Zero
-      }
+      val initialScore = score(text, rightAnswer)
 
       if (synonyms.left.nonEmpty || synonyms.right.nonEmpty)
         ???
 
       updateScoreConsideringHints(initialScore, revealedRatio)
+  }
+
+  private def score(given: String, rightAnswer: String): Score = {
+    if (given == rightAnswer) Score.Perfect else {
+      val givenLower = given.toLowerCase
+      val rightLower = rightAnswer.toLowerCase
+
+      if (givenLower == rightLower) Score.Good else {
+        val lambda = {
+          val cap = 0.5
+          val score = Tversky.score(givenLower, rightLower) - cap
+          if (score <= 0) 0.0 else score * 1.0/cap
+        }
+
+        (lambda * 3).round match {
+          case 1 => Score.Poor
+          case 2 => Score.SoSo
+          case 3 => Score.Good
+          case _ => Score.Zero
+        }
+      }
+    }
   }
 
   private def updateScoreConsideringHints(score: Score, revealedRatio: RevealedRatio): Score = {

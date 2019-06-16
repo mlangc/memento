@@ -43,11 +43,47 @@ class ExaminerTest extends BaseTest {
       }
     }
 
-    "with almost an almost right answer" ignore {
+    "with almost almost right answers" in {
       assert {
         Examiner.score(
           Question(Translation("Lausbub", "scallywag"), Direction.LeftToRight, None),
           Answer.Text("scalywag"), Synonyms.None) === Score.SoSo
+      }
+
+      assert {
+        Examiner.score(
+          Question(Translation("Lausbub", "scallywag"), Direction.RightToLeft, None),
+          Answer.Text("lausbub"), Synonyms.None) === Score.Good
+      }
+
+      assert {
+        Examiner.score(
+          Question(Translation("Gundwasser", "une nappe phréatique"), Direction.LeftToRight, None),
+          Answer.Text("une nappe phreatique"), Synonyms.None) === Score.SoSo
+      }
+
+      assert {
+        Examiner.score(
+          Question(Translation("Gundwasser", "une nappe phréatique"), Direction.LeftToRight, None),
+          Answer.Text("une nappe phreantique"), Synonyms.None) === Score.Poor
+      }
+
+      assert {
+        Examiner.score(
+          Question(Translation("Gundwasser", "une nappe phréatique"), Direction.LeftToRight, None),
+          Answer.Text("un nappe phreantique"), Synonyms.None) === Score.Poor
+      }
+
+      assert {
+        Examiner.score(
+          Question(Translation("Gundwasser", "une nappe phréatique"), Direction.LeftToRight, None),
+          Answer.Text("un nape phreantique"), Synonyms.None) === Score.Zero
+      }
+
+      assert {
+        Examiner.score(
+          Question(Translation("Gundwasser", "une nappe phréatique"), Direction.LeftToRight, None),
+          Answer.Text("un nap preanique"), Synonyms.None) === Score.Zero
       }
     }
 

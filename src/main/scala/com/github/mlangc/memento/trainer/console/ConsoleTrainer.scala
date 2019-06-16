@@ -95,7 +95,7 @@ object ConsoleTrainer extends App {
 
     (for {
       sheetId <- GsheetsCfg.sheetId.orDie
-      credentialsPath <- GsheetsCfg.sheetId.orDie
+      credentialsPath <- GsheetsCfg.credentialsPath.orDie
       db <- GsheetsVocabularyDb.make(sheetId, new File(credentialsPath))
       trainer = new ConsoleTrainer
       _ <- trainer.train(db, new DefaultExaminer(new LeitnerRepetitionScheme))

@@ -96,5 +96,6 @@ libraryDependencies ++= Seq(
 
 libraryDependencies += "com.statemachinesystems" % "mock-clock" % "1.0" % Test
 libraryDependencies += "com.github.mlangc" %% "slf4zio" % "0.1.0-SNAPSHOT"
+libraryDependencies += "com.github.vickumar1981" %% "stringdistance" % "1.1.1"
 
 

@@ -25,8 +25,7 @@ import scalaz.zio.Task
 import scalaz.zio.UIO
 import scalaz.zio.interop.catz._
 
-import scala.util.Random
-
+import scala.math.pow
 
 class LeitnerRepetitionScheme(boxSpecs: NonEmptyVector[BoxSpec] = BoxSpecs.defaultBoxSpecs,
                               clock: Clock = Clock.systemDefaultZone()) extends RepetitionScheme {
@@ -77,14 +76,17 @@ class LeitnerRepetitionScheme(boxSpecs: NonEmptyVector[BoxSpec] = BoxSpecs.defau
       deckState.cards.collect { case (card, (state, _)) if state.shouldBeTested => card }
     }
 
-    val selectCard = selectRandomElem(cardsToBeTested).flatMap {
-      case Some(card) => UIO.succeed(card)
+    val selectCard: Task[Card] = selectRandomElemWeighted(cardsToBeTested)(weighCardsByBoxRef(deckState)).flatMap {
+      case Some(card) => UIO.succeed(Some(card))
       case _ =>
         val remainingCards = deckState.cards.keySet.diff(cardsToBeTested.toSet)
         for {
           now <- UIO(Instant.now(clock))
-          card <- selectRandomElemWeighted(remainingCards)(weighCard(now, deckState))
+          card <- selectRandomElemWeighted(remainingCards)(weighCardBySecondsTillExpired(now, deckState))
         } yield card
+    }.flatMap {
+      case Some(card) => UIO.succeed(card)
+      case None => Task.fail(new IllegalStateException("Could not select a card"))
     }
 
     for {
@@ -93,7 +95,17 @@ class LeitnerRepetitionScheme(boxSpecs: NonEmptyVector[BoxSpec] = BoxSpecs.defau
     } yield question
   }
 
-  private def weighCard(now: Instant, deckState: DeckState)(card: Card): Long Refined Positive = {
+  private def weighCardsByBoxRef(deckState: DeckState)(card: Card): Long Refined Positive = {
+    val factor = 1.25
+    val baseWeight = 100
+    val boxInd = deckState.cards(card)._2.index
+
+    Refined.unsafeApply[Long, Positive] {
+      (pow(factor, boxInd.toDouble) * baseWeight).toLong
+    }
+  }
+
+  private def weighCardBySecondsTillExpired(now: Instant, deckState: DeckState)(card: Card): Long Refined Positive = {
     val lastCheck = deckState.checks
       .filter(check => card.correspondsTo(check) && check.timestamp.isBefore(now))
       .sortBy(_.timestamp)
@@ -107,22 +119,24 @@ class LeitnerRepetitionScheme(boxSpecs: NonEmptyVector[BoxSpec] = BoxSpecs.defau
     }.getOrElse(refineMV[Positive](1L))
   }
 
-  private def selectRandomElemWeighted[A](as: Iterable[A])(weigh: A => Long Refined Positive): Task[A] = {
+  private def selectRandomElemWeighted[A](as: Iterable[A])(weigh: A => Long Refined Positive): Task[Option[A]] = {
     val (totalWeight, asWithWeights) = as.foldLeft(0L -> List.empty[(A, Long Refined Positive)]) { case ((totalWeight, asWithWeights), a) =>
       val weight = weigh(a)
       (totalWeight + weight.value, (a -> weight) :: asWithWeights)
     }
 
-    val sortedAsWithWeights = asWithWeights.sortBy(-_._2.value)
-    UIO(ThreadLocalRandom.current().nextLong(totalWeight)).flatMap { r =>
-      UIO {
-        selectForThreshold(
-          NonEmptyList.fromListUnsafe(sortedAsWithWeights),
-          Refined.unsafeApply[Long, NonNegative](r))
+    NonEmptyList.fromList(asWithWeights.sortBy(-_._2.value)).traverse { sortedAsWithWeights =>
+      UIO(ThreadLocalRandom.current().nextLong(totalWeight)).flatMap { r =>
+        UIO {
+          selectForThreshold(
+            sortedAsWithWeights,
+            Refined.unsafeApply[Long, NonNegative](r))
+        }
       }
     }
   }
 
+  @scala.annotation.tailrec
   private def selectForThreshold[A](asWithWeights: NonEmptyList[(A, Long Refined Positive)], threshold: Long Refined NonNegative): A = {
     asWithWeights match {
       case NonEmptyList(aw, Nil) => aw._1
@@ -131,12 +145,6 @@ class LeitnerRepetitionScheme(boxSpecs: NonEmptyVector[BoxSpec] = BoxSpecs.defau
           case Right(newThreshold) => selectForThreshold(NonEmptyList(t1, ts), newThreshold)
           case _ => a
         }
-    }
-  }
-
-  private def selectRandomElem[A](as: Iterable[A]): Task[Option[A]] = {
-    NonEmptyVector.fromVector(as.toVector).traverse { as =>
-      UIO(as.getUnsafe(Random.nextInt(as.length)))
     }
   }
 }

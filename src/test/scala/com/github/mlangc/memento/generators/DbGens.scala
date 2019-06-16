@@ -7,7 +7,7 @@ import org.scalacheck.Gen
 class DbGens(val baseGens: BaseGens = new BaseGens()) {
   def score: Gen[Score] = Gen.oneOf(Score.values)
 
-  def word: Gen[Word] = Gen.alphaStr.map(Word.apply)
+  def word: Gen[Vocabulary] = Gen.alphaStr.map(Vocabulary.apply)
 
   def translation: Gen[Translation] =
     for {

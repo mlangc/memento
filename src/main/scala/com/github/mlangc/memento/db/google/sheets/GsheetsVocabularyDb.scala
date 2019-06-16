@@ -16,7 +16,7 @@ import com.github.mlangc.memento.db.model.Score
 import com.github.mlangc.memento.db.model.Synonym
 import com.github.mlangc.memento.db.model.Translation
 import com.github.mlangc.memento.db.model.VocabularyData
-import com.github.mlangc.memento.db.model.Word
+import com.github.mlangc.memento.db.model.Vocabulary
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp
 import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow
@@ -87,7 +87,7 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: String, sheets: Sheet
           timestamp <- cellToStr(row.get(4)).flatMap(toInstant)
           score <- cellToStr(row.get(3)).flatMap(Score.parse)
           direction <- cellToStr(row.get(2)).flatMap(Direction.fromString)
-        } yield Check(Translation(Word(leftWord), Word(rightWord)), direction, score, timestamp)
+        } yield Check(Translation(Vocabulary(leftWord), Vocabulary(rightWord)), direction, score, timestamp)
       }
     }
 

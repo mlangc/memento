@@ -17,7 +17,7 @@ scalacOptions ++= Seq(
   "-language:implicitConversions",     // Allow definition of implicit functions called views
   "-unchecked",                        // Enable additional warnings where generated code depends on assumptions.
   "-Xcheckinit",                       // Wrap field accessors to throw an exception on uninitialized access.
-  "-Xfatal-warnings",                  // Fail the compilation if there are any warnings.
+  //"-Xfatal-warnings",                  // Fail the compilation if there are any warnings.
   "-Xfuture",                          // Turn on future language features.
   "-Xlint:adapted-args",               // Warn if an argument list is modified to match the receiver.
   "-Xlint:by-name-right-associative",  // By-name parameter of right associative operator.
@@ -89,6 +89,12 @@ libraryDependencies ++= Seq(
 libraryDependencies += "com.statemachinesystems" % "mock-clock" % "1.0" % Test
 libraryDependencies += "com.github.vickumar1981" %% "stringdistance" % "1.1.1"
 
-// libraryDependencies += "com.github.mlangc" %% "slf4zio" % "0.1.0-SNAPSHOT"
 
+
+val log4j2Version = "2.11.2"
+libraryDependencies += "org.apache.logging.log4j" % "log4j-api" % log4j2Version
+libraryDependencies += "org.apache.logging.log4j" % "log4j-core" % log4j2Version
+libraryDependencies += "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4j2Version
+
+libraryDependencies += "com.github.mlangc" %% "slf4zio" % "0.1.0-SNAPSHOT"
 

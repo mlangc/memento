@@ -1,25 +1,30 @@
 package com.github.mlangc.memento.trainer.repetition.leitner
 
+import java.time.Instant
 import java.time.ZoneId
 
 import com.github.mlangc.memento.db.model.Check
 import com.github.mlangc.memento.db.model.Direction
 import com.github.mlangc.memento.db.model.Score
+import com.github.mlangc.memento.generators.TrainerGens
 import com.github.mlangc.memento.trainer.model.Question
 import com.github.mlangc.memento.trainer.model.TestTrainingData
 import com.github.mlangc.memento.trainer.repetition.GenericRepetitionSchemeTest
-import com.github.mlangc.memento.trainer.repetition.RepetitionScheme
 import com.github.mlangc.memento.trainer.repetition.RepetitionStatus
 import com.github.mlangc.memento.trainer.repetition.leitner.TestBoxSpecs.defaultBoxSpecs
 import com.statemachinesystems.mockclock.MockClock
 import eu.timepit.refined.auto._
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import scalaz.zio.IO
 import scalaz.zio.Task
+import scalaz.zio.UIO
 
 import scala.concurrent.duration._
+import com.github.mlangc.slf4zio.api._
 
-class LeitnerRepetitionSchemeTest extends GenericRepetitionSchemeTest {
+class LeitnerRepetitionSchemeTest extends GenericRepetitionSchemeTest with ScalaCheckPropertyChecks with LoggingSupport {
 
-  protected lazy val scheme: RepetitionScheme = new LeitnerRepetitionScheme(defaultBoxSpecs)
+  protected lazy val scheme: LeitnerRepetitionScheme = new LeitnerRepetitionScheme(defaultBoxSpecs)
 
   "Simulate with" - {
     "a single translation and no prior checks" inIO {
@@ -80,7 +85,76 @@ class LeitnerRepetitionSchemeTest extends GenericRepetitionSchemeTest {
         _ <- Task(assert(statusBefore7thRound === RepetitionStatus.CardsLeft(2)))
       } yield ()
     }
+
+    "generated data" - {
+      lazy val trainerGens = new TrainerGens()
+
+      "making sure that dormant questions are not asked unless needed" in {
+        forAll(trainerGens.trainingData) { trainingData =>
+          val latestCheckTs = {
+            if (trainingData.checks.isEmpty) Instant.EPOCH
+            else trainingData.checks.maxBy(_.timestamp).timestamp
+          }
+
+          val mkSchemeImplWithMockClock: Task[Option[(LeitnerRepetitionScheme.Impl, MockClock)]] = {
+            mkSchemeWithMockClock(latestCheckTs).flatMap { case (scheme, clock) =>
+              scheme.implement(trainingData).map {
+                case Some(impl: LeitnerRepetitionScheme.Impl) => Some(impl -> clock)
+                case _ => None
+              }
+            }
+          }
+
+          unsafeRun {
+            mkSchemeImplWithMockClock.flatMap {
+              case None => IO.unit
+              case Some((impl, clock)) =>
+
+                def questionsTillFirstOffenderOrShouldStop(acc: List[Question] = Nil): Task[List[Question]] = {
+                  def isOffender(question: Question, deckState: DeckState): Boolean = {
+                    val cardState = deckState.cards(Card(question.translation, question.direction))._1
+                    !cardState.shouldBeTested
+                  }
+
+                  for {
+                    _ <- UIO(clock.advanceBySeconds(15))
+                    now <- UIO(clock.instant())
+                    status <- impl.status
+                    deckState <- impl.getDeckState
+                    questions <- {
+                      if (status.shouldStop) IO.succeed(acc) else {
+                        val question = acc match {
+                          case Nil => impl.next
+                          case lastQuestion :: _ => impl.next(Check(
+                            lastQuestion.translation, lastQuestion.direction, Score.Perfect, now))
+                        }
+
+                        question.flatMap { question =>
+                          if (isOffender(question, deckState)) Task.succeed(question :: acc)
+                          else questionsTillFirstOffenderOrShouldStop(question :: acc)
+                        }
+                      }
+                    }
+                  } yield questions
+                }
+
+                for {
+                  questions <- questionsTillFirstOffenderOrShouldStop()
+                  shouldStop <- impl.status.map(_.shouldStop)
+                  _ <- Task(assert(shouldStop, questions))
+                } yield ()
+            }
+          }
+        }
+      }
+    }
   }
+
+  private def mkSchemeWithMockClock(now: Instant): Task[(LeitnerRepetitionScheme, MockClock)] =
+    for {
+      clock <- Task(MockClock.at(now, ZoneId.of("UTC")))
+      scheme = new LeitnerRepetitionScheme(defaultBoxSpecs, clock)
+    } yield (scheme, clock)
 
   private def advanceClock(clock: MockClock, duration: Duration): Task[Unit] = Task {
     clock.advanceByMillis(duration.toMillis.toInt)

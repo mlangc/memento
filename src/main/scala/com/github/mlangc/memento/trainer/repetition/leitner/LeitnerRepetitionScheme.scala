@@ -15,6 +15,7 @@ import com.github.mlangc.memento.trainer.model.Question
 import com.github.mlangc.memento.trainer.repetition.RepetitionScheme
 import com.github.mlangc.memento.trainer.repetition.RepetitionStatus
 import com.github.mlangc.memento.trainer.repetition.RepetitionStatus.ShouldStop
+import com.github.mlangc.memento.trainer.repetition.leitner
 import eu.timepit.refined._
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.NonNegative
@@ -31,12 +32,12 @@ class LeitnerRepetitionScheme(boxSpecs: NonEmptyVector[BoxSpec] = BoxSpecs.defau
                               clock: Clock = Clock.systemDefaultZone()) extends RepetitionScheme {
 
   protected def implement(translations: NonEmptyVector[Translation],
-                          checks: List[Check]): Task[RepetitionScheme.Impl] =
+                          checks: List[Check]): Task[LeitnerRepetitionScheme.Impl] =
     for {
       now <- UIO(Instant.now(clock))
       deckStateRef <- Ref.make(initialDeckState(translations, checks, now))
     } yield {
-      new RepetitionScheme.Impl {
+      new LeitnerRepetitionScheme.Impl {
         def next: Task[Question] =
           for {
             deckState <- deckStateRef.get
@@ -60,6 +61,8 @@ class LeitnerRepetitionScheme(boxSpecs: NonEmptyVector[BoxSpec] = BoxSpecs.defau
               case Left(_) => ShouldStop
             }
           }
+
+        def getDeckState: UIO[DeckState] = deckStateRef.get
       }
     }
 
@@ -146,6 +149,12 @@ class LeitnerRepetitionScheme(boxSpecs: NonEmptyVector[BoxSpec] = BoxSpecs.defau
           case _ => a
         }
     }
+  }
+}
+
+object LeitnerRepetitionScheme {
+  trait Impl extends RepetitionScheme.Impl {
+    private[leitner] def getDeckState: UIO[DeckState]
   }
 }
 

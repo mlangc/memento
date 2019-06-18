@@ -123,7 +123,9 @@ object DeckState {
     val checksForCard: Map[Card, List[Check]] = checks
       .groupBy(check => Card(check.translation, check.direction)) |+| cards.map(_ -> List.empty[Check]).toMap
 
-    checksForCard.map { case (card, checks) => card -> processChecksForCard(normalizedAndSorted(checks)) }
+    checksForCard
+      .filterKeys(cards.contains)
+      .map { case (card, checks) => card -> processChecksForCard(normalizedAndSorted(checks)) }
   }
 
   private def normalizedAndSorted(checks: List[Check]): List[Check] = {

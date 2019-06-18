@@ -3,10 +3,14 @@ package com.github.mlangc.memento.trainer.repetition
 import java.time.Instant
 
 import com.github.mlangc.memento.BaseZioTest
-import com.github.mlangc.memento.db.model.{Check, Score}
+import com.github.mlangc.memento.db.model.{Check, Direction, Score, Translation}
 import com.github.mlangc.memento.trainer.model.{Question, TestTrainingData, TrainingData}
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.numeric.{NonNegative, Positive}
 import org.scalatest.OptionValues
 import scalaz.zio.{Task, UIO, ZIO}
+
+import eu.timepit.refined.auto._
 
 abstract class GenericRepetitionSchemeTest extends BaseZioTest with OptionValues {
   protected def scheme: RepetitionScheme
@@ -45,10 +49,7 @@ abstract class GenericRepetitionSchemeTest extends BaseZioTest with OptionValues
         for {
           impl <- implFor(TestTrainingData.enGerTwoElems)
           statusAtFirst <- impl.status
-          question0 <- impl.next
-          questions <- ZIO.foldLeft(1.to(250))(question0 :: Nil) { (qs, _) =>
-            toCheck(qs.head, Score.Perfect).flatMap(impl.next).map(_ :: qs)
-          }
+          questions <- runSimulation(impl, 250)
           _ <- Task {
             assert(statusAtFirst.shouldContinue)
             assert(questions.toSet.size === 4)
@@ -57,6 +58,30 @@ abstract class GenericRepetitionSchemeTest extends BaseZioTest with OptionValues
       }
     }
   }
+
+  "Repeating with prior training" - {
+    "simple cases" - {
+      "a one translation db with a single check, that is obsolete" inIO {
+        val obsoleteCheck = Check(Translation("Hoffnung", "Hope"), Direction.LeftToRight, Score.Good, Instant.EPOCH)
+        val trainingData = TestTrainingData.enGerSingleElem.copy(checks = obsoleteCheck :: Nil)
+
+        for {
+          impl <- implFor(trainingData)
+          questions <- runSimulation(impl, 250)
+          _ <- Task(assert(questions.toSet.size === 2))
+        } yield ()
+      }
+    }
+  }
+
+  private def runSimulation(impl: RepetitionScheme.Impl, numQuestions: Int Refined Positive): Task[List[Question]] =
+    for {
+      question0 <- impl.next
+      questions <- ZIO.foldLeft(1.to(numQuestions.value - 1))(question0 :: Nil) { (qs, _) =>
+        toCheck(qs.head, Score.Perfect).flatMap(impl.next).map(_ :: qs)
+      }
+    } yield questions
+
 
   private def getTime: UIO[Instant] = UIO(Instant.now())
 

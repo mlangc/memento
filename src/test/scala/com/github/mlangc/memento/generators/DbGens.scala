@@ -2,11 +2,9 @@ package com.github.mlangc.memento.generators
 
 import cats.data.NonEmptyList
 import cats.data.NonEmptyVector
-import com.github.mlangc.memento.db.model._
-import com.github.mlangc.memento.trainer.model.TrainingData
-import org.scalacheck.Gen
-
 import cats.syntax.foldable._
+import com.github.mlangc.memento.db.model._
+import org.scalacheck.Gen
 
 class DbGens(val baseGens: BaseGens = new BaseGens()) {
   def score: Gen[Score] = Gen.oneOf(Score.values)

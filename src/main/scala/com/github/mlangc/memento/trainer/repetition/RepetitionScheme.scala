@@ -13,7 +13,7 @@ import com.github.mlangc.memento.db.model.Check
 trait RepetitionScheme {
   final def implement(data: TrainingData): Task[Option[RepetitionScheme.Impl]] =
     NonEmptyVector.fromVector(data.translations)
-      .traverse(ts => implement(ts, Nil))
+      .traverse(ts => implement(ts, data.checks))
 
   protected def implement(translations: NonEmptyVector[Translation], checks: List[Check]): Task[RepetitionScheme.Impl]
 }

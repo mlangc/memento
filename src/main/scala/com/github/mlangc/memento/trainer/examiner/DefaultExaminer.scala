@@ -5,17 +5,19 @@ import java.time.Instant
 import cats.instances.option._
 import cats.syntax.traverse._
 import com.github.mlangc.memento.db.VocabularyDb
-import com.github.mlangc.memento.db.model.{Check, Score, VocabularyData}
+import com.github.mlangc.memento.db.model.Check
+import com.github.mlangc.memento.db.model.VocabularyData
 import com.github.mlangc.memento.trainer.examiner.DefaultExaminer.ExamState
 import com.github.mlangc.memento.trainer.model._
 import com.github.mlangc.memento.trainer.repetition.RepetitionScheme
-import scalaz.zio.{Ref, Semaphore, Task}
 import scalaz.zio.interop.catz._
+import scalaz.zio.Ref
+import scalaz.zio.Semaphore
+import scalaz.zio.Task
 
 object DefaultExaminer {
   private case class ExamState(lastQuestion: Option[Question] = None,
                                lastAnswer: Option[Answer] = None,
-                               lastScore: Option[Score] = None,
                                lastCheck: Option[Check] = None,
                                spellingHinter: Option[SpellingHinter] = None)
 }
@@ -42,8 +44,8 @@ class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner {
                 (question, hinter) = questionAndHinter
                 answer <- ask(question)
                 feedback = answer.map(giveFeedback(question))
-                _ <- safeFeedback(db, question, feedback)
-                _ <- examStateRef.update(updateExamState(question, answer, hinter, feedback))
+                check <- safeFeedback(db, question, feedback)
+                _ <- examStateRef.update(updateExamState(question, answer, hinter, check))
               } yield feedback
             }
           }
@@ -55,19 +57,19 @@ class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner {
   private def updateExamState(question: Question,
                               maybeAnswer: Option[Answer],
                               hinter: Option[SpellingHinter],
-                              maybeFeedback: Option[Feedback])(state: ExamState): ExamState = {
+                              maybeCheck: Option[Check])(state: ExamState): ExamState = {
     maybeAnswer.map { answer =>
       state.copy(
         lastQuestion = Some(question),
         lastAnswer = Some(answer),
-        lastScore = maybeFeedback.flatMap(_.maybeScore),
+        lastCheck = maybeCheck,
         spellingHinter = hinter)
     }.getOrElse(state)
   }
 
   private def nextQuestion(state: ExamState, schemeImpl: RepetitionScheme.Impl): Task[(Question, Option[SpellingHinter])] = {
     state match {
-      case ExamState(Some(lastQuestion), Some(Answer.NeedHint), _, _, _) =>
+      case ExamState(Some(lastQuestion), Some(Answer.NeedHint), _, _) =>
         for {
           spellingHinter <- state.spellingHinter.map(Task.succeed).getOrElse {
             SpellingHinter.make(lastQuestion.rightAnswer.spelling)
@@ -100,13 +102,13 @@ class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner {
 
   private def safeFeedback(db: VocabularyDb,
                            question: Question,
-                           maybeFeedback: Option[Feedback]): Task[Unit] = maybeFeedback match {
-    case None => Task.unit
+                           maybeFeedback: Option[Feedback]): Task[Option[Check]] = maybeFeedback match {
+    case None => Task.succeed(None)
     case Some(feedback) =>
       for {
         check <- toCheck(question, feedback)
         _ <- check.map(db.addCheck).getOrElse(Task.unit)
-      } yield ()
+      } yield check
   }
 
   private def giveFeedback(question: Question)(answer: Answer): Feedback = answer match {

@@ -15,7 +15,6 @@ import com.github.mlangc.memento.trainer.model.Question
 import com.github.mlangc.memento.trainer.repetition.RepetitionScheme
 import com.github.mlangc.memento.trainer.repetition.RepetitionStatus
 import com.github.mlangc.memento.trainer.repetition.RepetitionStatus.ShouldStop
-import com.github.mlangc.memento.trainer.repetition.leitner
 import eu.timepit.refined._
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.NonNegative

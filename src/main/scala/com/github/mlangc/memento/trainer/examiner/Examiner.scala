@@ -7,7 +7,7 @@ import com.github.mlangc.memento.trainer.model.Question
 import com.github.mlangc.memento.trainer.model.RevealedRatio
 import com.github.mlangc.memento.trainer.model.ScorableAnswer
 import com.github.mlangc.memento.trainer.model.Synonyms
-import com.github.vickumar1981.stringdistance.StringDistance.Tversky
+import com.github.vickumar1981.stringdistance.StringDistance.Levenshtein
 import eu.timepit.refined.auto._
 import scalaz.zio.Task
 
@@ -36,8 +36,8 @@ object Examiner {
 
       if (givenLower == rightLower) Score.Good else {
         val lambda = {
-          val cap = 0.5
-          val score = Tversky.score(givenLower, rightLower) - cap
+          val cap = 0.57
+          val score = Levenshtein.score(givenLower, rightLower) - cap
           if (score <= 0) 0.0 else score * 1.0/cap
         }
 

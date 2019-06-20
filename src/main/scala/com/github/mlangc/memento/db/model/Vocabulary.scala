@@ -1,3 +1,3 @@
 package com.github.mlangc.memento.db.model
 
-case class Vocabulary(spelling: String)
+case class Vocabulary(spelling: Spelling)

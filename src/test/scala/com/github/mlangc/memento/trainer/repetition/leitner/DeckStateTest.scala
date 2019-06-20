@@ -13,6 +13,8 @@ import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import scala.concurrent.duration._
 import scala.util.Random
 
+import eu.timepit.refined.auto._
+
 class DeckStateTest extends BaseTest with ScalaCheckDrivenPropertyChecks {
   private val leitnerGens = new LeitnerGens()
   private def baseGens = leitnerGens.baseGens

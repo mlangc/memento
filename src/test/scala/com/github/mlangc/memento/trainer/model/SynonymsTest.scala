@@ -2,11 +2,12 @@ package com.github.mlangc.memento.trainer.model
 
 import cats.data.NonEmptyList
 import com.github.mlangc.memento.BaseTest
-import com.github.mlangc.memento.db.model.Synonym
-import com.github.mlangc.memento.db.model.Translation
+import com.github.mlangc.memento.db.model.{Synonym, Translation, Vocabulary}
 import com.github.mlangc.memento.generators.DbGens
 import org.scalacheck.Gen
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
+import eu.timepit.refined.auto._
 
 class SynonymsTest extends BaseTest with ScalaCheckPropertyChecks {
   private val dbGens = new DbGens()
@@ -14,11 +15,14 @@ class SynonymsTest extends BaseTest with ScalaCheckPropertyChecks {
   private def synonymsGen: Gen[Synonyms] = synonymsWithTranslationsGen.map(_._1)
 
   private def synonymsWithTranslationsGen: Gen[(Synonyms, List[Translation])] =
+    synonymsWithInputGen.map { case (synonyms, _, _, translation) => synonyms -> translation }
+
+  private def synonymsWithInputGen: Gen[(Synonyms, List[Synonym], List[Synonym], List[Translation])] =
     for {
       translations <- Gen.listOf(dbGens.translation)
       synonyms1 <- dbGens.synonyms(translations.map(_.left))
       synonyms2 <- dbGens.synonyms(translations.map(_.right))
-    } yield Synonyms.from(translations, synonyms1, synonyms2) -> translations
+    } yield (Synonyms.from(translations, synonyms1, synonyms2), synonyms1, synonyms2, translations)
 
   "Extracting synonyms" - {
     "from trivial input" in {
@@ -61,7 +65,7 @@ class SynonymsTest extends BaseTest with ScalaCheckPropertyChecks {
           val problems = for {
             (a, bs) <- syns.toSeq
             b <- bs
-            c <- syns(b) if !syns(c).contains(a)
+            c <- syns(b) if c != a && !syns(c).contains(a)
           } yield (a, b, c)
 
           assert(problems.isEmpty)
@@ -71,26 +75,55 @@ class SynonymsTest extends BaseTest with ScalaCheckPropertyChecks {
 
     "if a and b have the same translation, they are synonyms" in {
       forAll(synonymsWithTranslationsGen) { case (Synonyms(synsLeft, synsRight), translations) =>
-        val synGroupsLeft = translations.groupBy(_.right).values
-          .map(_.map(_.left))
-          .collect { case w1 :: w2 :: ws => w1 -> NonEmptyList(w2, ws) }
-
-        val synGroupsRight = translations.groupBy(_.left).values
-          .map(_.map(_.right))
-          .collect { case w1 :: w2 :: ws => w1 -> NonEmptyList(w2, ws) }
-
-        val missingSynsLeft = synGroupsLeft.filter { case (w1, ws) =>
-          ws.toList.toSet.subsetOf(synsLeft(w1))
+        def synGroups(left: Translation => Vocabulary, right: Translation => Vocabulary) = {
+          translations.groupBy(right).values
+            .map(_.map(left))
+            .collect { case w1 :: w2 :: ws => w1 -> NonEmptyList(w2, ws) }
+            .map { case (w, ws) => ws.flatMap(w2 => NonEmptyList.of(Synonym(w, w2), Synonym(w2, w))) }
+            .flatMap(_.toList)
+            .toSet
         }
 
-        val missingSynsRight = synGroupsLeft.filter { case (w1, ws) =>
-          ws.toList.toSet.subsetOf(synsLeft(w1))
+        val synGroupsLeft = synGroups(_.left, _.right)
+        val synGroupsRight = synGroups(_.right, _.left)
+
+        val missingSynsLeft = synGroupsLeft.filterNot { case Synonym(w1, w2) =>
+            synsLeft(w1).contains(w2)
+        }
+
+        val missingSynsRight = synGroupsRight.filterNot { case Synonym(w1, w2) =>
+          synsRight(w1).contains(w2)
         }
 
         assert(missingSynsLeft.isEmpty)
         assert(missingSynsRight.isEmpty)
       }
     }
-  }
 
+    "existing synonyms are kept (except for synonyms of a word with itself)" in {
+      forAll(synonymsWithInputGen) { case (Synonyms(synsLeft, synsRight), synsInLeft, synsInRight, _) =>
+          def findMissingSynonyms(syns: Map[Vocabulary, Set[Vocabulary]], synsIn: List[Synonym]): List[Synonym] = {
+            synsIn
+              .filter(s => s.voc1 != s.voc2)
+              .filterNot(s => syns.getOrElse(s.voc1, Set.empty).contains(s.voc2))
+          }
+
+          val missingSynsLeft = findMissingSynonyms(synsLeft, synsInLeft)
+          val missingSynsRight = findMissingSynonyms(synsRight, synsInRight)
+          assert(missingSynsLeft.isEmpty)
+          assert(missingSynsRight.isEmpty)
+      }
+    }
+
+    "A vocabulary is never a synonym to itself" in {
+      forAll(synonymsGen) { syns =>
+        def findSynsToSelf(map: Map[Vocabulary, Set[Vocabulary]]): Set[Vocabulary] = {
+          map.collect { case (voc, vocs) if vocs.contains(voc) => voc }.toSet
+        }
+
+        assert(findSynsToSelf(syns.left).isEmpty)
+        assert(findSynsToSelf(syns.right).isEmpty)
+      }
+    }
+  }
 }

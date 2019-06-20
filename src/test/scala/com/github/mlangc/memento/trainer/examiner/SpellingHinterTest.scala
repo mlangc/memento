@@ -1,16 +1,13 @@
 package com.github.mlangc.memento.trainer.examiner
 
 import com.github.mlangc.memento.BaseZioTest
+import com.github.mlangc.memento.db.model.Spelling
 import com.github.mlangc.memento.trainer.model.Hint
 import eu.timepit.refined.auto._
 import scalaz.zio.ZIO
 
 class SpellingHinterTest extends BaseZioTest {
   "Test our hinter" - {
-    "with an empty string" in {
-      assert(takeHints("", 2) === List(Hint("", 1.0) , Hint("", 1.0)))
-    }
-
     "with a single letter" in {
       assert(takeHints("a", 2) === List(Hint("a", 1.0), Hint("a", 1.0)))
     }
@@ -48,7 +45,7 @@ class SpellingHinterTest extends BaseZioTest {
     }
   }
 
-  private def takeHints(spelling: String, n: Int): List[Hint] = {
+  private def takeHints(spelling: Spelling, n: Int): List[Hint] = {
     unsafeRun {
       for {
         hinter <- SpellingHinter.make(spelling)

@@ -9,6 +9,8 @@ import com.github.mlangc.memento.db.model.Translation
 import scalaz.zio.Managed
 import scalaz.zio.Task
 
+import eu.timepit.refined.auto._
+
 class GsheetsVocabularyDbTest extends GenericVocabularyDbTest {
   private val sheetId = ciris.env[String]("TEST_SHEET_ID").value.right.getOrElse("")
   private val credentialsPath = ciris.env[String]("GOOGLE_CREDENTIALS_PATH").value.right.getOrElse("")

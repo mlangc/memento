@@ -3,14 +3,20 @@ package com.github.mlangc.memento.trainer.repetition
 import java.time.Instant
 
 import com.github.mlangc.memento.BaseZioTest
-import com.github.mlangc.memento.db.model.{Check, Direction, Score, Translation}
-import com.github.mlangc.memento.trainer.model.{Question, TestTrainingData, TrainingData}
+import com.github.mlangc.memento.db.model.Check
+import com.github.mlangc.memento.db.model.Direction
+import com.github.mlangc.memento.db.model.Score
+import com.github.mlangc.memento.db.model.Translation
+import com.github.mlangc.memento.trainer.model.Question
+import com.github.mlangc.memento.trainer.model.TestTrainingData
+import com.github.mlangc.memento.trainer.model.TrainingData
 import eu.timepit.refined.api.Refined
-import eu.timepit.refined.numeric.{NonNegative, Positive}
-import org.scalatest.OptionValues
-import scalaz.zio.{Task, UIO, ZIO}
-
 import eu.timepit.refined.auto._
+import eu.timepit.refined.numeric.Positive
+import org.scalatest.OptionValues
+import scalaz.zio.Task
+import scalaz.zio.UIO
+import scalaz.zio.ZIO
 
 abstract class GenericRepetitionSchemeTest extends BaseZioTest with OptionValues {
   protected def scheme: RepetitionScheme

@@ -1,15 +1,29 @@
 package com.github.mlangc.memento.generators
 
-import cats.data.NonEmptyList
-import cats.data.NonEmptyVector
+import cats.data.{NonEmptyList, NonEmptyVector}
 import cats.syntax.foldable._
 import com.github.mlangc.memento.db.model._
+import eu.timepit.refined.refineV
 import org.scalacheck.Gen
 
 class DbGens(val baseGens: BaseGens = new BaseGens()) {
   def score: Gen[Score] = Gen.oneOf(Score.values)
 
-  def vocabulary: Gen[Vocabulary] = Gen.alphaStr.map(Vocabulary.apply)
+  def spelling: Gen[Spelling] =
+    for {
+      n <- Gen.chooseNum(1, 3)
+      word <- Gen.chooseNum(1,15)
+        .flatMap(l => Gen.listOfN(l, Gen.alphaChar))
+        .map(_.mkString)
+
+      spelling <- Gen.listOfN(n, word)
+        .map(_.mkString(" "))
+        .map(s => refineV[SpellingRefinement](s).toOption)
+        .suchThat(_.nonEmpty)
+        .map(_.get)
+    } yield spelling
+
+  def vocabulary: Gen[Vocabulary] = spelling.map(Vocabulary.apply)
 
   def translation: Gen[Translation] =
     for {

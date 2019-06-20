@@ -10,6 +10,8 @@ import com.github.mlangc.memento.db.model.Translation
 import scalaz.zio.Managed
 import scalaz.zio.Task
 
+import eu.timepit.refined.auto._
+
 abstract class GenericVocabularyDbTest extends BaseZioTest {
   protected def db: Managed[Throwable, VocabularyDb]
 

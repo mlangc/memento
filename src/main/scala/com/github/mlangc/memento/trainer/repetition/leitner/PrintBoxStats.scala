@@ -51,7 +51,7 @@ object PrintBoxStats extends App {
       val header = s"""Box(${boxRef.index}, ${boxRef.spec.interval}, ${boxRef.spec.minScore}):"""
 
       val cards = deckState.boxes(boxRef).toList
-        .sortBy(card => (getState(card).shouldBeTested, getState(card).entryName, card.translation.left.spelling, card.direction.toString))
+        .sortBy(card => (getState(card).shouldBeTested, getState(card).entryName, card.translation.left.spelling.value, card.direction.toString))
 
       val body = cards
         .map(renderCard).map("  " + _)

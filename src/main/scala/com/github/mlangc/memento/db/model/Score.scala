@@ -1,8 +1,8 @@
 package com.github.mlangc.memento.db.model
 
+import cats.instances.int._
 import cats.kernel.Order
 import enumeratum._
-import cats.instances.int._
 
 import scala.collection.immutable
 

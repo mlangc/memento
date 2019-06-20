@@ -12,6 +12,8 @@ import org.scalatest.OptionValues
 import scalaz.zio.Ref
 import scalaz.zio.Task
 
+import eu.timepit.refined.auto._
+
 abstract class GenericExaminerTest extends BaseZioTest with OptionValues {
   "Test with an empty db" inIO {
     val voxData = TestVocabularyData.gerFrEmpty

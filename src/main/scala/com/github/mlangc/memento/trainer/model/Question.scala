@@ -6,7 +6,7 @@ import eu.timepit.refined.numeric.NonNegative
 
 case class Question(translation: Translation,
                     direction: Direction,
-                    timesAsked: Int Refined NonNegative,
+                    timesAskedBefore: Int Refined NonNegative,
                     hint: Option[Hint] = None) {
   def rightAnswer: Vocabulary = direction match {
     case Direction.LeftToRight => translation.right

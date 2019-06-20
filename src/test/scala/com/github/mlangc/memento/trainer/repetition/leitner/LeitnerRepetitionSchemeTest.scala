@@ -7,8 +7,7 @@ import com.github.mlangc.memento.db.model.Check
 import com.github.mlangc.memento.db.model.Direction
 import com.github.mlangc.memento.db.model.Score
 import com.github.mlangc.memento.generators.TrainerGens
-import com.github.mlangc.memento.trainer.model.Question
-import com.github.mlangc.memento.trainer.model.TestTrainingData
+import com.github.mlangc.memento.trainer.model.{Card, Question, TestTrainingData}
 import com.github.mlangc.memento.trainer.repetition.GenericRepetitionSchemeTest
 import com.github.mlangc.memento.trainer.repetition.RepetitionStatus
 import com.github.mlangc.memento.trainer.repetition.leitner.TestBoxSpecs.defaultBoxSpecs
@@ -29,7 +28,7 @@ class LeitnerRepetitionSchemeTest extends GenericRepetitionSchemeTest with Scala
   "Simulate with" - {
     "a single translation and no prior checks" inIO {
       val testData = TestTrainingData.enGerSingleElem
-      val question1 = Question(testData.translations.head, Direction.LeftToRight)
+      val question1 = Question(testData.translations.head, Direction.LeftToRight, 0)
       val question2 = question1.copy(direction = question1.direction.flip)
 
       for {

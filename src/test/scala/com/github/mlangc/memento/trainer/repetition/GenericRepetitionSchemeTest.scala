@@ -45,6 +45,7 @@ abstract class GenericRepetitionSchemeTest extends BaseZioTest with OptionValues
           question2 <- impl.next(check1)
           _ <- Task {
             assert(statusAtFirst.shouldContinue)
+            assert(question1.timesAsked.value === 0)
             assert(!statusAtFirst.shouldStop)
             assert(question1.translation === question2.translation)
           }
@@ -57,8 +58,14 @@ abstract class GenericRepetitionSchemeTest extends BaseZioTest with OptionValues
           statusAtFirst <- impl.status
           questions <- runSimulation(impl, 250)
           _ <- Task {
+            val questionsWhereTimesAskedSeemsBroken = questions.groupBy(_.toCard)
+              .mapValues(_.map(_.timesAsked.value).toSet)
+              .mapValues(timesAskedSet => 0.until(timesAskedSet.size).toSet == timesAskedSet)
+              .filter(!_._2)
+
+            assert(questionsWhereTimesAskedSeemsBroken.isEmpty)
             assert(statusAtFirst.shouldContinue)
-            assert(questions.toSet.size === 4)
+            assert(questions.map(_.toCard).toSet.size === 4)
           }
         } yield ()
       }
@@ -74,7 +81,7 @@ abstract class GenericRepetitionSchemeTest extends BaseZioTest with OptionValues
         for {
           impl <- implFor(trainingData)
           questions <- runSimulation(impl, 250)
-          _ <- Task(assert(questions.toSet.size === 2))
+          _ <- Task(assert(questions.map(_.toCard).toSet.size === 2))
         } yield ()
       }
     }

@@ -8,11 +8,11 @@ import com.github.mlangc.memento.db.model.Direction._
 import com.github.mlangc.memento.db.model.Score.{Good, Perfect, SoSo}
 import com.github.mlangc.memento.db.model.{Check, Score, Translation}
 import com.github.mlangc.memento.generators.LeitnerGens
+import com.github.mlangc.memento.trainer.model.Card
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 import scala.concurrent.duration._
 import scala.util.Random
-
 import eu.timepit.refined.auto._
 
 class DeckStateTest extends BaseTest with ScalaCheckDrivenPropertyChecks {

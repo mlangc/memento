@@ -11,7 +11,7 @@ import cats.instances.option._
 import cats.syntax.traverse._
 import com.github.mlangc.memento.db.model.Check
 import com.github.mlangc.memento.db.model.Translation
-import com.github.mlangc.memento.trainer.model.Question
+import com.github.mlangc.memento.trainer.model.{Card, Question}
 import com.github.mlangc.memento.trainer.repetition.RepetitionScheme
 import com.github.mlangc.memento.trainer.repetition.RepetitionStatus
 import com.github.mlangc.memento.trainer.repetition.RepetitionStatus.ShouldStop
@@ -93,9 +93,13 @@ class LeitnerRepetitionScheme(boxSpecs: NonEmptyVector[BoxSpec] = BoxSpecs.defau
 
     for {
       card <- selectCard
-      question = Question(card.translation, card.direction)
+      timesAsked = Refined.unsafeApply[Int, NonNegative](deckState.checks.count(correspondsTo(card)))
+      question = Question(card.translation, card.direction, timesAsked)
     } yield question
   }
+
+  private def correspondsTo(card: Card)(check: Check): Boolean =
+    card.translation == check.translation && card.direction == check.direction
 
   private def weighCardsByBoxRef(deckState: DeckState)(card: Card): Long Refined Positive = {
     val factor = 1.25

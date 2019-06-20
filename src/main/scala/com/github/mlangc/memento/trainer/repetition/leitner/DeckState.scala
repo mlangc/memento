@@ -12,6 +12,7 @@ import cats.syntax.semigroup._
 import com.github.mlangc.memento.db.model.Check
 import com.github.mlangc.memento.db.model.Direction
 import com.github.mlangc.memento.db.model.Translation
+import com.github.mlangc.memento.trainer.model.Card
 
 import scala.concurrent.duration.Duration
 import scala.math.max

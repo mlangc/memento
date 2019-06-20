@@ -7,7 +7,7 @@ import cats.data.{NonEmptyList, NonEmptyVector}
 import com.github.mlangc.memento.db.google.sheets.{GsheetsCfg, GsheetsVocabularyDb}
 import com.github.mlangc.memento.db.model.Direction
 import com.github.mlangc.memento.db.model.Direction.{LeftToRight, RightToLeft}
-import com.github.mlangc.memento.trainer.model.TrainingData
+import com.github.mlangc.memento.trainer.model.{Card, TrainingData}
 import com.github.mlangc.memento.util.convenience.syntax.ciris._
 import scalaz.zio.console.Console
 import scalaz.zio.{App, UIO, ZIO, console}

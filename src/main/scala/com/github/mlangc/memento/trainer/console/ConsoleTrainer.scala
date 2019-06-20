@@ -70,6 +70,7 @@ class ConsoleTrainer extends VocabularyTrainer {
       .map(hint => s"[hint: ${hint.spelling}] ")
       .getOrElse("")
 
+    println(s"Times asked before: ${question.timesAskedBefore}")
     print(s"$knownLang[${knownSide.spelling}] --$hintStr--> ")
   }
 

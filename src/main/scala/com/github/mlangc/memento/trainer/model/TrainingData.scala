@@ -8,7 +8,10 @@ case class TrainingData(translations: Vector[Translation],
 
 object TrainingData {
   def convert(data: VocabularyData): TrainingData = {
-    TrainingData(data.translations.toVector, Synonyms(Map(), Map()), data.checks)
+    TrainingData(
+      data.translations.toVector,
+      Synonyms.from(data.translations, data.synonyms1, data.synonyms2),
+      data.checks)
   }
 }
 

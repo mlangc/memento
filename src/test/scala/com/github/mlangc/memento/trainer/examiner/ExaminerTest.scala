@@ -1,14 +1,11 @@
 package com.github.mlangc.memento.trainer.examiner
 
 import com.github.mlangc.memento.BaseTest
-import com.github.mlangc.memento.db.model.Direction
-import com.github.mlangc.memento.db.model.Score
-import com.github.mlangc.memento.db.model.Translation
+import com.github.mlangc.memento.db.model.{Direction, Score, Spelling, Translation, Vocabulary}
 import com.github.mlangc.memento.trainer.model.Answer
 import com.github.mlangc.memento.trainer.model.Hint
 import com.github.mlangc.memento.trainer.model.Question
 import com.github.mlangc.memento.trainer.model.Synonyms
-
 import eu.timepit.refined.auto._
 
 class ExaminerTest extends BaseTest {
@@ -134,5 +131,25 @@ class ExaminerTest extends BaseTest {
           Answer.Text("Lausbub"), Synonyms.None) === Score.Zero
       }
     }
+
+    "considering synonyms" in {
+      val syns1 = mkSyns("Lausbub", "Lauser", "Schlingel", "Racker", "Schlawiner")
+      val syns2 = mkSyns("scallywag", "rascal", "brat")
+      val syns = Synonyms(syns1, syns2)
+      val translation = Translation("Lausbub", "scallywag")
+
+      assert(Examiner.score(Question((translation), Direction.LeftToRight), Answer.Text("brat"), syns) === Score.Perfect)
+      assert(Examiner.score(Question(translation, Direction.RightToLeft), Answer.Text("schlingel"), syns) === Score.Good)
+    }
+  }
+
+  private def mkSyns(voc: Spelling, vocs: Spelling*): Map[Vocabulary, Set[Vocabulary]] = {
+    val allVocs = (voc :: vocs.toList)
+      .map(Vocabulary.apply)
+      .toSet
+
+    allVocs
+      .map(voc => voc -> (allVocs - voc))
+      .toMap
   }
 }

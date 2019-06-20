@@ -1,12 +1,8 @@
 package com.github.mlangc.memento.trainer.examiner
 
 import com.github.mlangc.memento.db.VocabularyDb
-import com.github.mlangc.memento.db.model.Score
-import com.github.mlangc.memento.trainer.model.Answer
-import com.github.mlangc.memento.trainer.model.Question
-import com.github.mlangc.memento.trainer.model.RevealedRatio
-import com.github.mlangc.memento.trainer.model.ScorableAnswer
-import com.github.mlangc.memento.trainer.model.Synonyms
+import com.github.mlangc.memento.db.model.{Direction, Score}
+import com.github.mlangc.memento.trainer.model.{Answer, Question, RevealedRatio, ScorableAnswer, Synonyms}
 import com.github.vickumar1981.stringdistance.StringDistance.Levenshtein
 import eu.timepit.refined.auto._
 import scalaz.zio.Task
@@ -19,13 +15,13 @@ object Examiner {
   def score(question: Question, answer: ScorableAnswer, synonyms: Synonyms): Score = answer match {
     case Answer.Blank => Score.Zero
     case Answer.Text(text) =>
-      val rightAnswer = question.rightAnswer.spelling
+      val rightAnswers = {
+        val syns = if (question.direction == Direction.LeftToRight) synonyms.right else synonyms.left
+        syns.getOrElse(question.rightAnswer, Set.empty) + question.rightAnswer
+      }
+
       val revealedRatio = question.hint.map(_.revealed).getOrElse(0.0: RevealedRatio)
-      val initialScore = score(text, rightAnswer)
-
-      if (synonyms.left.nonEmpty || synonyms.right.nonEmpty)
-        ???
-
+      val initialScore = rightAnswers.map(rightAnswer => score(text, rightAnswer.spelling.value)).max
       updateScoreConsideringHints(initialScore, revealedRatio)
   }
 

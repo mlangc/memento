@@ -20,4 +20,5 @@ object Score extends Enum[Score] {
   def parse(str: String): Option[Score] = withNameInsensitiveOption(str)
 
   implicit val scoreOrder: Order[Score] = Order.by[Score, Int](_.ordinal)
+  implicit val scoreOrdering: Ordering[Score] = scoreOrder.toOrdering
 }

@@ -5,8 +5,11 @@ import java.time.Instant
 import cats.instances.list._
 import cats.kernel.Order
 import cats.syntax.foldable._
-import com.github.mlangc.memento.db.model.{Check, Direction, Translation, Vocabulary}
-import com.github.mlangc.memento.i18n.Messages
+import com.github.mlangc.memento.db.model.Check
+import com.github.mlangc.memento.db.model.Direction
+import com.github.mlangc.memento.db.model.Translation
+import com.github.mlangc.memento.db.model.Vocabulary
+import com.github.mlangc.memento.i18n.MotivatorMessages
 import com.github.mlangc.memento.trainer.model.Question.Motivator
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.NonNegative
@@ -28,9 +31,8 @@ case class Question(translation: Translation,
 object Question {
 
   trait Motivator {
-    def label(messages: Messages): String
-
-    def text(messages: Messages): String
+    def label(messages: MotivatorMessages): String
+    def text(messages: MotivatorMessages): String
   }
 
   def create(translation: Translation,

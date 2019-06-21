@@ -7,6 +7,8 @@ import com.github.mlangc.memento.db.google.sheets.{GsheetsCfg, GsheetsVocabulary
 import com.github.mlangc.memento.db.model.Direction
 import com.github.mlangc.memento.db.model.LanguageName
 import com.github.mlangc.memento.db.model.Score
+import com.github.mlangc.memento.i18n.ConsoleMessages
+import com.github.mlangc.memento.i18n.Messages
 import com.github.mlangc.memento.trainer.VocabularyTrainer
 import com.github.mlangc.memento.trainer.examiner.{DefaultExaminer, Exam, Examiner}
 import com.github.mlangc.memento.trainer.model.Answer
@@ -20,10 +22,10 @@ import com.github.mlangc.memento.util.convenience.syntax.ciris._
 
 import scala.io.StdIn
 
-class ConsoleTrainer extends VocabularyTrainer {
+class ConsoleTrainer(messages: ConsoleMessages) extends VocabularyTrainer {
   def train(db: VocabularyDb, examiner: Examiner): Task[Unit] =
     examiner.prepareExam(db).flatMap {
-      case None => Task(println("No data to train on"))
+      case None => Task(println(messages.noDataToTrainOn))
       case Some(exam) => runExam(exam)
     }
 
@@ -36,7 +38,7 @@ class ConsoleTrainer extends VocabularyTrainer {
 
   private def eventuallyWaitForEnter(feedback: Feedback): Task[Unit] =
     if (feedback == Feedback.Postponed) Task.unit else Task {
-      print("Press enter to continue")
+      print(messages.pressEnterToContinue)
       StdIn.readLine()
     }.unit
 
@@ -67,10 +69,10 @@ class ConsoleTrainer extends VocabularyTrainer {
     }
 
     val hintStr = question.hint
-      .map(hint => s"[hint: ${hint.spelling}] ")
+      .map(hint => s"[${messages.hint(hint.spelling)}] ")
       .getOrElse("")
 
-    println(s"Times asked before: ${question.timesAskedBefore}")
+    println(messages.timesAskedBefore(question.timesAskedBefore))
     print(s"$knownLang[${knownSide.spelling}] --$hintStr--> ")
   }
 
@@ -98,7 +100,8 @@ object ConsoleTrainer extends App {
       sheetId <- GsheetsCfg.sheetId.orDie
       credentialsPath <- GsheetsCfg.credentialsPath.orDie
       db <- GsheetsVocabularyDb.make(sheetId, new File(credentialsPath))
-      trainer = new ConsoleTrainer
+      messages <- Messages.forDefaultLocale
+      trainer = new ConsoleTrainer(messages.console)
       _ <- trainer.train(db, new DefaultExaminer(new LeitnerRepetitionScheme))
     } yield 0).orDie
   }

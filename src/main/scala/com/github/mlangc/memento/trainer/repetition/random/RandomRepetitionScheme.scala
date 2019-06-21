@@ -7,8 +7,6 @@ import com.github.mlangc.memento.db.model.Translation
 import com.github.mlangc.memento.trainer.model.Question
 import com.github.mlangc.memento.trainer.repetition.RepetitionScheme
 import com.github.mlangc.memento.trainer.repetition.RepetitionStatus
-import eu.timepit.refined.api.Refined
-import eu.timepit.refined.numeric.NonNegative
 import scalaz.zio.{Ref, Task}
 
 import scala.util.Random
@@ -25,8 +23,7 @@ object RandomRepetitionScheme extends RepetitionScheme {
               translation = translations.getUnsafe(ind)
               direction <- Task(Random.nextBoolean()).map(Direction.fromBoolean)
               checks <- checksRef.get
-              timesAsked = Refined.unsafeApply[Int, NonNegative](checks.count(c => c.translation == translation && c.direction == direction))
-            } yield Question(translation, direction, timesAsked)
+            } yield Question.create(translation, direction, checks)
 
           def next(check: Check): Task[Question] =
             checksRef.update(check :: _) *> next

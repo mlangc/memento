@@ -1,28 +1,19 @@
 package com.github.mlangc.memento.trainer.repetition.leitner
 
-import java.time.Clock
-import java.time.Duration
-import java.time.Instant
+import java.time.{Clock, Duration, Instant}
 import java.util.concurrent.ThreadLocalRandom
 
-import cats.data.NonEmptyList
-import cats.data.NonEmptyVector
+import cats.data.{NonEmptyList, NonEmptyVector}
 import cats.instances.option._
 import cats.syntax.traverse._
-import com.github.mlangc.memento.db.model.Check
-import com.github.mlangc.memento.db.model.Translation
+import com.github.mlangc.memento.db.model.{Check, Translation}
 import com.github.mlangc.memento.trainer.model.{Card, Question}
-import com.github.mlangc.memento.trainer.repetition.RepetitionScheme
-import com.github.mlangc.memento.trainer.repetition.RepetitionStatus
+import com.github.mlangc.memento.trainer.repetition.{RepetitionScheme, RepetitionStatus}
 import com.github.mlangc.memento.trainer.repetition.RepetitionStatus.ShouldStop
-import eu.timepit.refined._
 import eu.timepit.refined.api.Refined
-import eu.timepit.refined.numeric.NonNegative
-import eu.timepit.refined.numeric.Positive
-import eu.timepit.refined.refineV
-import scalaz.zio.Ref
-import scalaz.zio.Task
-import scalaz.zio.UIO
+import eu.timepit.refined.numeric.{NonNegative, Positive}
+import eu.timepit.refined.{refineV, _}
+import scalaz.zio.{Ref, Task, UIO}
 import scalaz.zio.interop.catz._
 
 import scala.math.pow
@@ -93,13 +84,9 @@ class LeitnerRepetitionScheme(boxSpecs: NonEmptyVector[BoxSpec] = BoxSpecs.defau
 
     for {
       card <- selectCard
-      timesAsked = Refined.unsafeApply[Int, NonNegative](deckState.checks.count(correspondsTo(card)))
-      question = Question(card.translation, card.direction, timesAsked)
+      question = Question.create(card.translation, card.direction, deckState.checks)
     } yield question
   }
-
-  private def correspondsTo(card: Card)(check: Check): Boolean =
-    card.translation == check.translation && card.direction == check.direction
 
   private def weighCardsByBoxRef(deckState: DeckState)(card: Card): Long Refined Positive = {
     val factor = 1.25

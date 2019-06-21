@@ -46,6 +46,7 @@ abstract class GenericRepetitionSchemeTest extends BaseZioTest with OptionValues
           _ <- Task {
             assert(statusAtFirst.shouldContinue)
             assert(question1.timesAskedBefore.value === 0)
+            assert(question1.lastAsked.isEmpty)
             assert(!statusAtFirst.shouldStop)
             assert(question1.translation === question2.translation)
           }

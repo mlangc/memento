@@ -43,7 +43,7 @@ class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner {
                 questionAndHinter <- nextQuestion(state, schemeImpl)
                 (question, hinter) = questionAndHinter
                 answer <- ask(question)
-                feedback = answer.map(giveFeedback(question))
+                feedback = answer.map(giveFeedback(question, trainingData.synonyms))
                 check <- safeFeedback(db, question, feedback)
                 _ <- examStateRef.update(updateExamState(question, answer, hinter, check))
               } yield feedback
@@ -111,9 +111,9 @@ class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner {
       } yield check
   }
 
-  private def giveFeedback(question: Question)(answer: Answer): Feedback = answer match {
+  private def giveFeedback(question: Question, synonyms: Synonyms)(answer: Answer): Feedback = answer match {
     case answer: ScorableAnswer =>
-      val score = Examiner.score(question, answer, Synonyms.None)
+      val score = Examiner.score(question, answer, synonyms)
       Feedback.Correction(question.rightAnswer, score)
 
     case _ => Feedback.Postponed

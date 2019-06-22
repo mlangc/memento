@@ -54,7 +54,10 @@ scalacOptions ++= Seq(
 
 scalacOptions in(Compile, console) --= Seq("-Ywarn-unused:imports", "-Xfatal-warnings")
 
+val catsVersion = "1.6.1"
 val zioVersion = "1.0-RC4"
+val refinedVersion = "0.9.8"
+
 libraryDependencies += "org.scalaz" %% "scalaz-zio-interop-cats" % zioVersion
 
 libraryDependencies += "com.softwaremill.common" %% "tagging" % "2.2.1"
@@ -66,11 +69,9 @@ libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.14.0" % Test
 libraryDependencies += "com.google.oauth-client" % "google-oauth-client-jetty" % "1.29.0"
 libraryDependencies += "com.google.apis" % "google-api-services-sheets" % "v4-rev579-1.25.0"
 
-val catsVersion = "1.6.1"
 libraryDependencies += "org.typelevel" %% "cats-core" % catsVersion
 libraryDependencies += "org.typelevel" %% "cats-effect" % "1.3.1"
 
-val refinedVersion = "0.9.8"
 libraryDependencies ++= Seq(
   "eu.timepit" %% "refined" % refinedVersion,
   "eu.timepit" %% "refined-scalacheck" % refinedVersion % Test
@@ -98,4 +99,9 @@ libraryDependencies += "org.apache.logging.log4j" % "log4j-core" % log4j2Version
 libraryDependencies += "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4j2Version
 
 libraryDependencies += "com.github.mlangc" %% "slf4zio" % "0.1.0-SNAPSHOT"
+libraryDependencies += "org.fusesource.jansi" % "jansi" % "1.18"
+
+libraryDependencies += "org.fusesource.jansi" % "jansi" % "1.18"
+libraryDependencies += "org.jline" % "jline-reader" % "3.11.0"
+
 

@@ -3,7 +3,8 @@ package com.github.mlangc.memento.trainer.console
 import java.io.File
 
 import com.github.mlangc.memento.db.VocabularyDb
-import com.github.mlangc.memento.db.google.sheets.{GsheetsCfg, GsheetsVocabularyDb}
+import com.github.mlangc.memento.db.google.sheets.GsheetsCfg
+import com.github.mlangc.memento.db.google.sheets.GsheetsVocabularyDb
 import com.github.mlangc.memento.db.model.Direction
 import com.github.mlangc.memento.db.model.LanguageName
 import com.github.mlangc.memento.db.model.Score
@@ -11,23 +12,32 @@ import com.github.mlangc.memento.i18n.ConsoleMessages
 import com.github.mlangc.memento.i18n.Messages
 import com.github.mlangc.memento.i18n.MotivatorMessages
 import com.github.mlangc.memento.trainer.VocabularyTrainer
-import com.github.mlangc.memento.trainer.examiner.{DefaultExaminer, Exam, Examiner}
+import com.github.mlangc.memento.trainer.examiner.DefaultExaminer
+import com.github.mlangc.memento.trainer.examiner.Exam
+import com.github.mlangc.memento.trainer.examiner.Examiner
 import com.github.mlangc.memento.trainer.model.Answer
 import com.github.mlangc.memento.trainer.model.Feedback
 import com.github.mlangc.memento.trainer.model.Question
 import com.github.mlangc.memento.trainer.repetition.leitner.LeitnerRepetitionScheme
+import com.github.mlangc.memento.util.convenience.syntax.ciris._
+import org.fusesource.jansi.Ansi.ansi
+import org.fusesource.jansi.AnsiConsole.out.print
+import org.fusesource.jansi.AnsiConsole.out.println
+import org.jline.reader.LineReaderBuilder
 import scalaz.zio.App
 import scalaz.zio.Task
 import scalaz.zio.ZIO
-import com.github.mlangc.memento.util.convenience.syntax.ciris._
 
 import scala.io.StdIn
 
+
 class ConsoleTrainer(consoleMessages: ConsoleMessages, motivatorMessages: MotivatorMessages) extends VocabularyTrainer {
+  private val reader = LineReaderBuilder.builder().build()
+
   def train(db: VocabularyDb, examiner: Examiner): Task[Unit] =
     examiner.prepareExam(db).flatMap {
       case None => Task(println(consoleMessages.noDataToTrainOn))
-      case Some(exam) => runExam(exam)
+      case Some(exam) => clearScreen *> runExam(exam)
     }
 
   private def runExam(exam: Exam): Task[Unit] = {
@@ -48,22 +58,22 @@ class ConsoleTrainer(consoleMessages: ConsoleMessages, motivatorMessages: Motiva
       case Feedback.Postponed => ()
       case Feedback.Correction(_, score) => score match {
         case Score.Perfect =>
-          println(score)
+          println(score.toString)
 
         case _ =>
-          println(feedback)
+          println(feedback.toString)
       }
     }
   }
 
   private def doAsk(exam: Exam)(question: Question): Task[Option[Answer]] =
     for {
-      _ <- printQuestion(question, exam.language1, exam.language2)
-      input <- readInput
+      prompt <- printQuestion(question, exam.language1, exam.language2)
+      input <- readInput(prompt)
       answer = parseInput(input)
     } yield answer
 
-  private def printQuestion(question: Question, lang1: LanguageName, lang2: LanguageName): Task[Unit] = Task {
+  private def printQuestion(question: Question, lang1: LanguageName, lang2: LanguageName): Task[String] = Task {
     val (knownSide, knownLang) = question.direction match {
       case Direction.LeftToRight => (question.translation.left, lang1)
       case _ => (question.translation.right, lang2)
@@ -82,16 +92,15 @@ class ConsoleTrainer(consoleMessages: ConsoleMessages, motivatorMessages: Motiva
     }
 
     println()
-    print(s"$knownLang[${knownSide.spelling}] --$hintStr--> ")
+    s"$knownLang[${knownSide.spelling}] --$hintStr--> "
   }
 
-  private def readInput: Task[String] = Task {
-    StdIn.readLine()
+  private def readInput(prompt: String): Task[String] = Task {
+    reader.readLine(prompt)
   }
 
   private def clearScreen: Task[Unit] = Task {
-    System.out.print("\u001b[H\u001b[2J")
-    System.out.flush()
+    println(ansi().cursor(0, 0).eraseScreen())
   }
 
   private def parseInput(input: String): Option[Answer] = input.trim match {

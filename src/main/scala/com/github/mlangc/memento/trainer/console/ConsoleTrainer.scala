@@ -34,6 +34,10 @@ import scala.io.StdIn
 class ConsoleTrainer(consoleMessages: ConsoleMessages, motivatorMessages: MotivatorMessages) extends VocabularyTrainer {
   private val reader = LineReaderBuilder.builder().build()
 
+  private val QuitCmd = ":q"
+  private val HintCmd = ":?"
+  private val HintCmdObsolete = "?"
+
   def train(db: VocabularyDb, examiner: Examiner): Task[Unit] =
     examiner.prepareExam(db).flatMap {
       case None => Task(println(consoleMessages.noDataToTrainOn))
@@ -79,10 +83,8 @@ class ConsoleTrainer(consoleMessages: ConsoleMessages, motivatorMessages: Motiva
       case _ => (question.translation.right, lang2)
     }
 
-    val hintStr = question.hint
-      .map(hint => s"[${consoleMessages.hint(hint.spelling)}] ")
-      .getOrElse("")
-
+    println(consoleMessages.help(QuitCmd, HintCmd))
+    println()
     println(consoleMessages.timesAskedBefore(question.timesAskedBefore))
     println(consoleMessages.lastAsked(question.lastAsked))
 
@@ -92,7 +94,12 @@ class ConsoleTrainer(consoleMessages: ConsoleMessages, motivatorMessages: Motiva
     }
 
     println()
-    s"$knownLang[${knownSide.spelling}] --$hintStr--> "
+    question.hint.foreach { hint =>
+      println(consoleMessages.hint(hint.spelling))
+      println()
+    }
+
+    s"$knownLang[${knownSide.spelling}] ---> "
   }
 
   private def readInput(prompt: String): Task[String] = Task {
@@ -104,8 +111,8 @@ class ConsoleTrainer(consoleMessages: ConsoleMessages, motivatorMessages: Motiva
   }
 
   private def parseInput(input: String): Option[Answer] = input.trim match {
-    case ":q" => None
-    case "?" => Some(Answer.NeedHint)
+    case QuitCmd => None
+    case HintCmd | HintCmdObsolete => Some(Answer.NeedHint)
     case "" => Some(Answer.Blank)
     case _ => Some(Answer.Text(input))
   }

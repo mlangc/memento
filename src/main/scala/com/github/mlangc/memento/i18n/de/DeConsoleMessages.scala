@@ -16,4 +16,7 @@ class DeConsoleMessages extends ConsoleMessages {
     val tsStr = instant.map(_.toString).getOrElse("nie")
     s"Zuletzt gefragt: $tsStr"
   }
+
+  def help(quitCommand: String, hintCommand: String) =
+    s"Verwenden Sie $quitCommand zum Aussteigen oder $hintCommand für einen Hinweis"
 }

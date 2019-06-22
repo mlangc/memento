@@ -1,10 +1,15 @@
 package com.github.mlangc.memento.trainer.examiner
 
 import com.github.mlangc.memento.db.VocabularyDb
-import com.github.mlangc.memento.db.model.{Direction, Score}
-import com.github.mlangc.memento.trainer.model.{Answer, Question, RevealedRatio, ScorableAnswer, Synonyms}
-import com.github.vickumar1981.stringdistance.StringDistance.Levenshtein
+import com.github.mlangc.memento.db.model.Direction
+import com.github.mlangc.memento.db.model.Score
+import com.github.mlangc.memento.trainer.model.Answer
+import com.github.mlangc.memento.trainer.model.Question
+import com.github.mlangc.memento.trainer.model.RevealedRatio
+import com.github.mlangc.memento.trainer.model.ScorableAnswer
+import com.github.mlangc.memento.trainer.model.Synonyms
 import eu.timepit.refined.auto._
+import info.debatty.java.stringsimilarity.NormalizedLevenshtein
 import scalaz.zio.Task
 
 trait Examiner {
@@ -12,6 +17,8 @@ trait Examiner {
 }
 
 object Examiner {
+  private val stringSimilarity = new NormalizedLevenshtein
+
   def score(question: Question, answer: ScorableAnswer, synonyms: Synonyms): Score = answer match {
     case Answer.Blank => Score.Zero
     case Answer.Text(text) =>
@@ -33,7 +40,7 @@ object Examiner {
       if (givenLower == rightLower) Score.Good else {
         val lambda = {
           val cap = 0.57
-          val score = Levenshtein.score(givenLower, rightLower) - cap
+          val score = stringSimilarity.similarity(givenLower, rightLower) - cap
           if (score <= 0) 0.0 else score * 1.0/cap
         }
 

@@ -4,7 +4,11 @@ version := "1.0.0"
 
 scalaVersion := "2.12.8"
 
-mainClass in(Compile, run) := Some("com.github.mlangc.memento.trainer.console.ConsoleTrainer")
+mainClass in Compile := Some("com.github.mlangc.memento.trainer.console.ConsoleTrainer")
+
+import sbtassembly.AssemblyPlugin.defaultUniversalScript
+assemblyOption in assembly := (assemblyOption in assembly).value.copy(prependShellScript = Some(defaultUniversalScript(shebang = false)))
+assemblyJarName in assembly := s"${name.value}-${version.value}"
 
 scalacOptions ++= Seq(
   "-deprecation", // Emit warning and location for usages of deprecated APIs.
@@ -57,6 +61,7 @@ scalacOptions in(Compile, console) --= Seq("-Ywarn-unused:imports", "-Xfatal-war
 val catsVersion = "1.6.1"
 val zioVersion = "1.0-RC4"
 val refinedVersion = "0.9.8"
+val log4j2Version = "2.11.2"
 
 libraryDependencies += "org.scalaz" %% "scalaz-zio-interop-cats" % zioVersion
 
@@ -89,11 +94,8 @@ libraryDependencies ++= Seq(
 )
 
 libraryDependencies += "com.statemachinesystems" % "mock-clock" % "1.0" % Test
-libraryDependencies += "com.github.vickumar1981" %% "stringdistance" % "1.1.1"
+libraryDependencies += "info.debatty" % "java-string-similarity" % "1.2.1"
 
-
-
-val log4j2Version = "2.11.2"
 libraryDependencies += "org.apache.logging.log4j" % "log4j-api" % log4j2Version
 libraryDependencies += "org.apache.logging.log4j" % "log4j-core" % log4j2Version
 libraryDependencies += "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4j2Version

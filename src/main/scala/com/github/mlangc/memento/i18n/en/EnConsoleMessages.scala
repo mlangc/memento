@@ -1,5 +1,7 @@
 package com.github.mlangc.memento.i18n.en
 
+import java.time.Instant
+
 import com.github.mlangc.memento.i18n.ConsoleMessages
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.NonNegative
@@ -9,4 +11,9 @@ class EnConsoleMessages extends ConsoleMessages {
   def pressEnterToContinue = "Press enter to continue"
   def timesAskedBefore(n: Refined[Int, NonNegative]) = s"Times asked before: ${n.value}"
   def hint(hintStr: String) = s"hint: $hintStr"
+
+  def lastAsked(instant: Option[Instant]): String = {
+    val tsStr = instant.map(_.toString).getOrElse("never")
+    s"Last asked: $tsStr"
+  }
 }

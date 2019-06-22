@@ -7,9 +7,13 @@ import cats.data.{NonEmptyList, NonEmptyVector}
 import cats.instances.option._
 import cats.syntax.traverse._
 import com.github.mlangc.memento.db.model.{Check, Translation}
+import com.github.mlangc.memento.i18n.MotivatorMessages
+import com.github.mlangc.memento.trainer.model.Question.Motivator
 import com.github.mlangc.memento.trainer.model.{Card, Question}
 import com.github.mlangc.memento.trainer.repetition.{RepetitionScheme, RepetitionStatus}
 import com.github.mlangc.memento.trainer.repetition.RepetitionStatus.ShouldStop
+import com.github.mlangc.memento.trainer.repetition.leitner.LeitnerRepetitionScheme.BoxInfoMotivator
+import com.github.mlangc.memento.trainer.repetition.leitner.LeitnerRepetitionScheme.CardInfoMotivator
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.{NonNegative, Positive}
 import eu.timepit.refined.{refineV, _}
@@ -84,8 +88,23 @@ class LeitnerRepetitionScheme(boxSpecs: NonEmptyVector[BoxSpec] = BoxSpecs.defau
 
     for {
       card <- selectCard
-      question = Question.create(card.translation, card.direction, deckState.checks)
+      question = Question.create(card.translation, card.direction, deckState.checks, motivators = motivatorsFor(deckState, card))
     } yield question
+  }
+
+  private def motivatorsFor(deckState: DeckState, card: Card): List[Motivator] = {
+    boxInfoMotivatorFor(deckState, card) :: cardInfoMotivator(deckState, card) :: Nil
+  }
+
+  private def boxInfoMotivatorFor(deckState: DeckState, card: Card): BoxInfoMotivator = {
+    val (cardState, boxRef) = deckState.cards(card)
+    val nextBox = deckState.boxSpecs.get(boxRef.index + 1)
+    val canAdvance = cardState == CardState.Expired
+    BoxInfoMotivator(boxRef, nextBox, canAdvance)
+  }
+
+  private def cardInfoMotivator(deckState: DeckState, card: Card): CardInfoMotivator = {
+    CardInfoMotivator(deckState.cards(card)._1)
   }
 
   private def weighCardsByBoxRef(deckState: DeckState)(card: Card): Long Refined Positive = {
@@ -145,6 +164,18 @@ class LeitnerRepetitionScheme(boxSpecs: NonEmptyVector[BoxSpec] = BoxSpecs.defau
 object LeitnerRepetitionScheme {
   trait Impl extends RepetitionScheme.Impl {
     private[leitner] def getDeckState: UIO[DeckState]
+  }
+
+  case class BoxInfoMotivator(currentBox: BoxRef, nextBox: Option[BoxSpec], canAdvance: Boolean) extends Motivator {
+    def text(messages: MotivatorMessages): String = {
+      nextBox.map { nextBox =>
+        messages.boxInfo(currentBox.index, currentBox.spec.minScore, currentBox.spec.interval, nextBox.minScore, nextBox.interval, canAdvance)
+      }.getOrElse(messages.boxInfo(currentBox.index, currentBox.spec.minScore, currentBox.spec.interval))
+    }
+  }
+
+  case class CardInfoMotivator(cardState: CardState) extends Motivator {
+    def text(messages: MotivatorMessages) = messages.cardState(cardState)
   }
 }
 

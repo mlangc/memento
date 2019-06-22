@@ -10,6 +10,8 @@ import com.github.mlangc.memento.generators.TrainerGens
 import com.github.mlangc.memento.trainer.model.{Card, Question, TestTrainingData}
 import com.github.mlangc.memento.trainer.repetition.GenericRepetitionSchemeTest
 import com.github.mlangc.memento.trainer.repetition.RepetitionStatus
+import com.github.mlangc.memento.trainer.repetition.leitner.LeitnerRepetitionScheme.BoxInfoMotivator
+import com.github.mlangc.memento.trainer.repetition.leitner.LeitnerRepetitionScheme.CardInfoMotivator
 import com.github.mlangc.memento.trainer.repetition.leitner.TestBoxSpecs.defaultBoxSpecs
 import com.statemachinesystems.mockclock.MockClock
 import eu.timepit.refined.auto._
@@ -38,7 +40,14 @@ class LeitnerRepetitionSchemeTest extends GenericRepetitionSchemeTest with Scala
         firstStatus <- schemeImpl.status
         _ <- Task(assert(firstStatus === RepetitionStatus.CardsLeft(2)))
         firstReturnedQuestion <- schemeImpl.next(mkCheck(question2, Score.Perfect, clock))
-        _ <- Task(firstReturnedQuestion === question1)
+        _ <- Task(assert(firstReturnedQuestion.toCard === question1.toCard))
+        _ <- checkMotivators(firstReturnedQuestion) { (cardInfo, boxInfo) =>
+          assert(cardInfo.cardState === CardState.New)
+          assert(boxInfo.currentBox.index === 0)
+          assert(boxInfo.currentBox.spec === defaultBoxSpecs.getUnsafe(0))
+          assert(boxInfo.nextBox.value === defaultBoxSpecs.getUnsafe(1))
+          assert(boxInfo.canAdvance === false)
+        }
         _ <- schemeImpl.next(mkCheck(firstReturnedQuestion, Score.Perfect, clock))
         statusAfterFirstRound <- schemeImpl.status
         _ <- Task(assert(statusAfterFirstRound === RepetitionStatus.ShouldStop))
@@ -46,7 +55,14 @@ class LeitnerRepetitionSchemeTest extends GenericRepetitionSchemeTest with Scala
         _ <- advanceClock(clock, defaultBoxSpecs.getUnsafe(0).interval)
         statusBeforeSecondRound <- schemeImpl.status
         _ <- Task(assert(statusBeforeSecondRound === RepetitionStatus.CardsLeft(2)))
-        _ <- schemeImpl.next(mkCheck(question1, Score.Perfect, clock))
+        _ <- schemeImpl.next(mkCheck(question1, Score.Perfect, clock)).flatMap { question =>
+          checkMotivators(question) { (cardInfo, boxInfo) =>
+            assert(cardInfo.cardState === CardState.Expired)
+            assert(boxInfo.canAdvance === true)
+            assert(boxInfo.currentBox.index === 0)
+            assert(boxInfo.nextBox.value === defaultBoxSpecs.getUnsafe(1))
+          }
+        }
         _ <- schemeImpl.next(mkCheck(question2, Score.Perfect, clock))
         statusAfterSecondRound <- schemeImpl.status
         _ <- Task(assert(statusAfterSecondRound === RepetitionStatus.ShouldStop))
@@ -54,7 +70,14 @@ class LeitnerRepetitionSchemeTest extends GenericRepetitionSchemeTest with Scala
         _ <- advanceClock(clock, defaultBoxSpecs.getUnsafe(1).interval)
         statusBeforeThirdRound <- schemeImpl.status
         _ <- Task(assert(statusBeforeThirdRound === RepetitionStatus.CardsLeft(2)))
-        _ <- schemeImpl.next(mkCheck(question1, Score.Perfect, clock))
+        _ <- schemeImpl.next(mkCheck(question1, Score.Perfect, clock)).flatMap { question =>
+          checkMotivators(question) { (cardInfo, boxInfo) =>
+            assert(cardInfo.cardState === CardState.Expired)
+            assert(boxInfo.currentBox.index === 1)
+            assert(boxInfo.canAdvance === true)
+            assert(boxInfo.nextBox.value === defaultBoxSpecs.getUnsafe(2))
+          }
+        }
         _ <- schemeImpl.next(mkCheck(question2, Score.Perfect, clock))
         statusAfterThirdRound <- schemeImpl.status
         _ <- Task(assert(statusAfterThirdRound === RepetitionStatus.ShouldStop))
@@ -161,4 +184,12 @@ class LeitnerRepetitionSchemeTest extends GenericRepetitionSchemeTest with Scala
 
   private def mkCheck(question: Question, score: Score, clock: MockClock): Check =
     Check(question.translation, question.direction, score, clock.instant())
+
+  private def checkMotivators(question: Question)(checks: (CardInfoMotivator, BoxInfoMotivator) => Unit): Task[Unit] = Task {
+    question.motivators match {
+      case (boxInfo: BoxInfoMotivator) :: (cardInfo: CardInfoMotivator) :: Nil => checks(cardInfo, boxInfo)
+      case (cardInfo: CardInfoMotivator) :: (boxInfo: BoxInfoMotivator) :: Nil => checks(cardInfo, boxInfo)
+      case other => throw new AssertionError("" + other)
+    }
+  }
 }

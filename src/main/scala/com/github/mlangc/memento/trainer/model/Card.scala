@@ -8,4 +8,6 @@ case class Card(translation: Translation, direction: Direction) {
 
   def correspondsTo(question: Question): Boolean =
     question.translation == translation && question.direction == direction
+
+  def flip: Card = Card(translation, direction.flip)
 }

@@ -9,6 +9,7 @@ import com.github.mlangc.memento.db.model.LanguageName
 import com.github.mlangc.memento.db.model.Score
 import com.github.mlangc.memento.i18n.ConsoleMessages
 import com.github.mlangc.memento.i18n.Messages
+import com.github.mlangc.memento.i18n.MotivatorMessages
 import com.github.mlangc.memento.trainer.VocabularyTrainer
 import com.github.mlangc.memento.trainer.examiner.{DefaultExaminer, Exam, Examiner}
 import com.github.mlangc.memento.trainer.model.Answer
@@ -22,10 +23,10 @@ import com.github.mlangc.memento.util.convenience.syntax.ciris._
 
 import scala.io.StdIn
 
-class ConsoleTrainer(messages: ConsoleMessages) extends VocabularyTrainer {
+class ConsoleTrainer(consoleMessages: ConsoleMessages, motivatorMessages: MotivatorMessages) extends VocabularyTrainer {
   def train(db: VocabularyDb, examiner: Examiner): Task[Unit] =
     examiner.prepareExam(db).flatMap {
-      case None => Task(println(messages.noDataToTrainOn))
+      case None => Task(println(consoleMessages.noDataToTrainOn))
       case Some(exam) => runExam(exam)
     }
 
@@ -38,7 +39,7 @@ class ConsoleTrainer(messages: ConsoleMessages) extends VocabularyTrainer {
 
   private def eventuallyWaitForEnter(feedback: Feedback): Task[Unit] =
     if (feedback == Feedback.Postponed) Task.unit else Task {
-      print(messages.pressEnterToContinue)
+      print(consoleMessages.pressEnterToContinue)
       StdIn.readLine()
     }.unit
 
@@ -69,10 +70,18 @@ class ConsoleTrainer(messages: ConsoleMessages) extends VocabularyTrainer {
     }
 
     val hintStr = question.hint
-      .map(hint => s"[${messages.hint(hint.spelling)}] ")
+      .map(hint => s"[${consoleMessages.hint(hint.spelling)}] ")
       .getOrElse("")
 
-    println(messages.timesAskedBefore(question.timesAskedBefore))
+    println(consoleMessages.timesAskedBefore(question.timesAskedBefore))
+    println(consoleMessages.lastAsked(question.lastAsked))
+
+    println()
+    question.motivators.foreach { motivator =>
+      println(motivator.text(motivatorMessages))
+    }
+
+    println()
     print(s"$knownLang[${knownSide.spelling}] --$hintStr--> ")
   }
 
@@ -101,7 +110,7 @@ object ConsoleTrainer extends App {
       credentialsPath <- GsheetsCfg.credentialsPath.orDie
       db <- GsheetsVocabularyDb.make(sheetId, new File(credentialsPath))
       messages <- Messages.forDefaultLocale
-      trainer = new ConsoleTrainer(messages.console)
+      trainer = new ConsoleTrainer(messages.console, messages.motivator)
       _ <- trainer.train(db, new DefaultExaminer(new LeitnerRepetitionScheme))
     } yield 0).orDie
   }

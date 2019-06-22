@@ -31,7 +31,6 @@ case class Question(translation: Translation,
 object Question {
 
   trait Motivator {
-    def label(messages: MotivatorMessages): String
     def text(messages: MotivatorMessages): String
   }
 

@@ -44,6 +44,16 @@ class SynonymsTest extends BaseTest with ScalaCheckPropertyChecks {
         Synonym("v", "w") :: Nil) === Synonyms.None)
     }
 
+    "a single translation and a single synonym" in {
+      assert(Synonyms.from(
+        Translation("verraten", "trahir") :: Nil,
+        Synonym("betrügen", "verraten") :: Nil,
+        Nil) === Synonyms(
+        Map(Vocabulary("betrügen") -> Set(Vocabulary("verraten")),
+          Vocabulary("verraten") -> Set(Vocabulary("betrügen"))), Map.empty)
+      )
+    }
+
     "if a is a synonym of b, than b is a synonym of a" in {
       forAll(synonymsGen) { case Synonyms(left, right) =>
         List(left, right).foreach { syns =>
@@ -88,7 +98,7 @@ class SynonymsTest extends BaseTest with ScalaCheckPropertyChecks {
         val synGroupsRight = synGroups(_.right, _.left)
 
         val missingSynsLeft = synGroupsLeft.filterNot { case Synonym(w1, w2) =>
-            synsLeft(w1).contains(w2)
+          synsLeft(w1).contains(w2)
         }
 
         val missingSynsRight = synGroupsRight.filterNot { case Synonym(w1, w2) =>
@@ -102,16 +112,16 @@ class SynonymsTest extends BaseTest with ScalaCheckPropertyChecks {
 
     "existing synonyms are kept (except for synonyms of a word with itself)" in {
       forAll(synonymsWithInputGen) { case (Synonyms(synsLeft, synsRight), synsInLeft, synsInRight, _) =>
-          def findMissingSynonyms(syns: Map[Vocabulary, Set[Vocabulary]], synsIn: List[Synonym]): List[Synonym] = {
-            synsIn
-              .filter(s => s.voc1 != s.voc2)
-              .filterNot(s => syns.getOrElse(s.voc1, Set.empty).contains(s.voc2))
-          }
+        def findMissingSynonyms(syns: Map[Vocabulary, Set[Vocabulary]], synsIn: List[Synonym]): List[Synonym] = {
+          synsIn
+            .filter(s => s.voc1 != s.voc2)
+            .filterNot(s => syns.getOrElse(s.voc1, Set.empty).contains(s.voc2))
+        }
 
-          val missingSynsLeft = findMissingSynonyms(synsLeft, synsInLeft)
-          val missingSynsRight = findMissingSynonyms(synsRight, synsInRight)
-          assert(missingSynsLeft.isEmpty)
-          assert(missingSynsRight.isEmpty)
+        val missingSynsLeft = findMissingSynonyms(synsLeft, synsInLeft)
+        val missingSynsRight = findMissingSynonyms(synsRight, synsInRight)
+        assert(missingSynsLeft.isEmpty)
+        assert(missingSynsRight.isEmpty)
       }
     }
 

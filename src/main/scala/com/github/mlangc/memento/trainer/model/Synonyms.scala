@@ -27,7 +27,7 @@ object Synonyms {
 
   private def dropOrphans(syns: List[Synonym], vocs: List[Vocabulary]): Set[Synonym] = {
     val vocsSet = vocs.toSet
-    syns.filter(s => asSet(s).subsetOf(vocsSet)).toSet
+    syns.filter(s => asSet(s).intersect(vocsSet).nonEmpty).toSet
   }
 
   private def synonymsFromTranslations(translations: List[Translation]): (Set[Synonym], Set[Synonym]) = {

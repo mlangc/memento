@@ -5,7 +5,7 @@ import com.github.mlangc.memento.db.model.VocabularyData
 import com.github.mlangc.memento.trainer.model.Answer
 import com.github.mlangc.memento.trainer.model.Feedback
 import com.github.mlangc.memento.trainer.model.Question
-import scalaz.zio.Task
+import zio.Task
 
 trait Exam {
   def nextQuestion(ask: Question => Task[Option[Answer]]): Task[Option[Feedback]]

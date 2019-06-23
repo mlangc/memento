@@ -4,11 +4,11 @@ import com.github.mlangc.memento.db.model.Spelling
 import com.github.mlangc.memento.trainer.model.Hint
 import com.github.mlangc.memento.trainer.model.UnitIntervalRefinement
 import eu.timepit.refined.api.Refined
-import scalaz.zio.Ref
-import scalaz.zio.UIO
+import zio.Ref
+import zio.UIO
 import eu.timepit.refined.auto._
 import eu.timepit.refined.refineV
-import scalaz.zio.Semaphore
+import zio.Semaphore
 
 import scala.util.Random
 

@@ -16,9 +16,9 @@ import com.github.mlangc.memento.trainer.repetition.leitner.TestBoxSpecs.default
 import com.statemachinesystems.mockclock.MockClock
 import eu.timepit.refined.auto._
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalaz.zio.IO
-import scalaz.zio.Task
-import scalaz.zio.UIO
+import zio.IO
+import zio.Task
+import zio.UIO
 
 import scala.concurrent.duration._
 import com.github.mlangc.slf4zio.api._

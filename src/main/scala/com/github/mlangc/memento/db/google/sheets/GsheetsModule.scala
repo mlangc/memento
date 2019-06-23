@@ -4,7 +4,7 @@ import java.io.File
 
 import com.github.mlangc.memento.db.DbModule
 import com.github.mlangc.memento.db.VocabularyDb
-import scalaz.zio.Task
+import zio.Task
 
 trait GsheetsModule extends DbModule {
   def secretsFile: File

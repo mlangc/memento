@@ -6,7 +6,7 @@ import com.github.mlangc.memento.i18n.de.DeConsoleMessages
 import com.github.mlangc.memento.i18n.de.DeMotivatorMessages
 import com.github.mlangc.memento.i18n.en.EnConsoleMessages
 import com.github.mlangc.memento.i18n.en.EnMotivatorMessages
-import scalaz.zio.UIO
+import zio.UIO
 
 case class Messages private (console: ConsoleMessages, motivator: MotivatorMessages)
 

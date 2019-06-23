@@ -1,7 +1,7 @@
 package com.github.mlangc.memento
 
 import org.scalactic.source.Position
-import scalaz.zio.{DefaultRuntime, ZIO}
+import zio.{DefaultRuntime, ZIO}
 
 abstract class BaseZioTest extends BaseTest with DefaultRuntime {
   protected class FreeSpecZioStringWrapper(string: String, position: Position) {

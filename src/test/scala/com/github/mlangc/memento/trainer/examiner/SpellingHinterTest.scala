@@ -4,7 +4,7 @@ import com.github.mlangc.memento.BaseZioTest
 import com.github.mlangc.memento.db.model.Spelling
 import com.github.mlangc.memento.trainer.model.Hint
 import eu.timepit.refined.auto._
-import scalaz.zio.ZIO
+import zio.ZIO
 
 class SpellingHinterTest extends BaseZioTest {
   "Test our hinter" - {

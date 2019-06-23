@@ -2,7 +2,7 @@ package com.github.mlangc.memento.db
 
 import com.github.mlangc.memento.db.model.Check
 import com.github.mlangc.memento.db.model.VocabularyData
-import scalaz.zio.Task
+import zio.Task
 
 trait VocabularyDb {
   def load: Task[VocabularyData]

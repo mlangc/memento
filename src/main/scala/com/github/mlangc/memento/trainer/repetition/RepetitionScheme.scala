@@ -4,11 +4,11 @@ import cats.data.NonEmptyVector
 import com.github.mlangc.memento.db.model.Translation
 import com.github.mlangc.memento.trainer.model.Question
 import com.github.mlangc.memento.trainer.model.TrainingData
-import scalaz.zio.Task
-import scalaz.zio.interop.catz._
+import zio.interop.catz._
 import cats.syntax.traverse._
 import cats.instances.option._
 import com.github.mlangc.memento.db.model.Check
+import zio.Task
 
 trait RepetitionScheme {
   final def implement(data: TrainingData): Task[Option[RepetitionScheme.Impl]] =

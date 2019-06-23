@@ -3,9 +3,9 @@ package com.github.mlangc.memento.db.mock
 import com.github.mlangc.memento.db.VocabularyDb
 import com.github.mlangc.memento.db.model.Check
 import com.github.mlangc.memento.db.model.VocabularyData
-import scalaz.zio.Ref
-import scalaz.zio.Task
-import scalaz.zio.UIO
+import zio.Ref
+import zio.Task
+import zio.UIO
 
 class InMemoryVocabularyDb(data: Ref[VocabularyData]) extends VocabularyDb {
   def load: Task[VocabularyData] = data.get

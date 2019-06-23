@@ -18,7 +18,7 @@ import com.google.api.services.sheets.v4.model.ValueRange
 import com.softwaremill.tagging.Tagger
 import eu.timepit.refined.auto._
 import eu.timepit.refined.refineV
-import scalaz.zio.Task
+import zio.Task
 
 import scala.collection.JavaConverters._
 import scala.util.Try

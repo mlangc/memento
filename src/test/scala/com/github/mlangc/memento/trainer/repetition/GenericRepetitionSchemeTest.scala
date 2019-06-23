@@ -14,9 +14,9 @@ import eu.timepit.refined.api.Refined
 import eu.timepit.refined.auto._
 import eu.timepit.refined.numeric.Positive
 import org.scalatest.OptionValues
-import scalaz.zio.Task
-import scalaz.zio.UIO
-import scalaz.zio.ZIO
+import zio.Task
+import zio.UIO
+import zio.ZIO
 
 abstract class GenericRepetitionSchemeTest extends BaseZioTest with OptionValues {
   protected def scheme: RepetitionScheme

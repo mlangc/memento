@@ -59,11 +59,12 @@ scalacOptions ++= Seq(
 scalacOptions in(Compile, console) --= Seq("-Ywarn-unused:imports", "-Xfatal-warnings")
 
 val catsVersion = "1.6.1"
-val zioVersion = "1.0-RC4"
+val zioVersion = "1.0.0-RC8-12"
 val refinedVersion = "0.9.8"
 val log4j2Version = "2.11.2"
 
-libraryDependencies += "org.scalaz" %% "scalaz-zio-interop-cats" % zioVersion
+
+libraryDependencies += "dev.zio" %% "zio-interop-cats" % zioVersion
 
 libraryDependencies += "com.softwaremill.common" %% "tagging" % "2.2.1"
 

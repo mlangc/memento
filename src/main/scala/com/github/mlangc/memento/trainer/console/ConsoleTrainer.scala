@@ -24,9 +24,9 @@ import org.fusesource.jansi.Ansi.ansi
 import org.fusesource.jansi.AnsiConsole.out.print
 import org.fusesource.jansi.AnsiConsole.out.println
 import org.jline.reader.LineReaderBuilder
-import scalaz.zio.App
-import scalaz.zio.Task
-import scalaz.zio.ZIO
+import zio.App
+import zio.Task
+import zio.ZIO
 
 import scala.io.StdIn
 

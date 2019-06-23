@@ -7,7 +7,7 @@ import com.github.mlangc.memento.db.model.Translation
 import com.github.mlangc.memento.trainer.model.Question
 import com.github.mlangc.memento.trainer.repetition.RepetitionScheme
 import com.github.mlangc.memento.trainer.repetition.RepetitionStatus
-import scalaz.zio.{Ref, Task}
+import zio.{Ref, Task}
 
 import scala.util.Random
 

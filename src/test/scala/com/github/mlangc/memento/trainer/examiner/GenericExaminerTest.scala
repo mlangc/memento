@@ -9,8 +9,8 @@ import com.github.mlangc.memento.trainer.model.Feedback
 import com.github.mlangc.memento.trainer.model.Hint
 import com.github.mlangc.memento.trainer.model.Question
 import org.scalatest.OptionValues
-import scalaz.zio.Ref
-import scalaz.zio.Task
+import zio.Ref
+import zio.Task
 
 import eu.timepit.refined.auto._
 

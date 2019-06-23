@@ -4,21 +4,17 @@ import java.time.{Clock, Duration, Instant}
 import java.util.concurrent.ThreadLocalRandom
 
 import cats.data.{NonEmptyList, NonEmptyVector}
-import cats.instances.option._
-import cats.syntax.traverse._
 import com.github.mlangc.memento.db.model.{Check, Translation}
 import com.github.mlangc.memento.i18n.MotivatorMessages
 import com.github.mlangc.memento.trainer.model.Question.Motivator
 import com.github.mlangc.memento.trainer.model.{Card, Question}
-import com.github.mlangc.memento.trainer.repetition.{RepetitionScheme, RepetitionStatus}
 import com.github.mlangc.memento.trainer.repetition.RepetitionStatus.ShouldStop
-import com.github.mlangc.memento.trainer.repetition.leitner.LeitnerRepetitionScheme.BoxInfoMotivator
-import com.github.mlangc.memento.trainer.repetition.leitner.LeitnerRepetitionScheme.CardInfoMotivator
+import com.github.mlangc.memento.trainer.repetition.leitner.LeitnerRepetitionScheme.{BoxInfoMotivator, CardInfoMotivator}
+import com.github.mlangc.memento.trainer.repetition.{RepetitionScheme, RepetitionStatus}
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.{NonNegative, Positive}
 import eu.timepit.refined.{refineV, _}
-import scalaz.zio.{Ref, Task, UIO}
-import scalaz.zio.interop.catz._
+import zio.{Ref, Task, UIO}
 
 import scala.math.pow
 
@@ -137,15 +133,17 @@ class LeitnerRepetitionScheme(boxSpecs: NonEmptyVector[BoxSpec] = BoxSpecs.defau
       (totalWeight + weight.value, (a -> weight) :: asWithWeights)
     }
 
-    NonEmptyList.fromList(asWithWeights.sortBy(-_._2.value)).traverse { sortedAsWithWeights =>
+    NonEmptyList.fromList(asWithWeights.sortBy(-_._2.value)).map { sortedAsWithWeights =>
       UIO(ThreadLocalRandom.current().nextLong(totalWeight)).flatMap { r =>
         UIO {
-          selectForThreshold(
-            sortedAsWithWeights,
-            Refined.unsafeApply[Long, NonNegative](r))
+          Some {
+            selectForThreshold(
+              sortedAsWithWeights,
+              Refined.unsafeApply[Long, NonNegative](r))
+          }
         }
       }
-    }
+    }.getOrElse(UIO.succeed(None))
   }
 
   @scala.annotation.tailrec
@@ -162,6 +160,7 @@ class LeitnerRepetitionScheme(boxSpecs: NonEmptyVector[BoxSpec] = BoxSpecs.defau
 }
 
 object LeitnerRepetitionScheme {
+
   trait Impl extends RepetitionScheme.Impl {
     private[leitner] def getDeckState: UIO[DeckState]
   }
@@ -177,5 +176,6 @@ object LeitnerRepetitionScheme {
   case class CardInfoMotivator(cardState: CardState) extends Motivator {
     def text(messages: MotivatorMessages) = messages.cardState(cardState)
   }
+
 }
 

@@ -2,18 +2,13 @@ package com.github.mlangc.memento.trainer.examiner
 
 import java.time.Instant
 
-import cats.instances.option._
-import cats.syntax.traverse._
+import cats.syntax.option._
 import com.github.mlangc.memento.db.VocabularyDb
-import com.github.mlangc.memento.db.model.Check
-import com.github.mlangc.memento.db.model.VocabularyData
+import com.github.mlangc.memento.db.model.{Check, VocabularyData}
 import com.github.mlangc.memento.trainer.examiner.DefaultExaminer.ExamState
 import com.github.mlangc.memento.trainer.model._
 import com.github.mlangc.memento.trainer.repetition.RepetitionScheme
-import scalaz.zio.interop.catz._
-import scalaz.zio.Ref
-import scalaz.zio.Semaphore
-import scalaz.zio.Task
+import zio.{Ref, Semaphore, Task, UIO}
 
 object DefaultExaminer {
   private case class ExamState(lastQuestion: Option[Question] = None,
@@ -31,7 +26,7 @@ class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner {
 
     for {
       maybeSchemeImpl <- repetitionScheme.implement(trainingData)
-      exam <- maybeSchemeImpl.traverse { schemeImpl =>
+      exam <- maybeSchemeImpl.map { schemeImpl =>
         for {
           examStateRef <- Ref.make(ExamState())
           semaphore <- Semaphore.make(1)
@@ -48,9 +43,9 @@ class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner {
                 _ <- examStateRef.update(updateExamState(question, answer, hinter, check))
               } yield feedback
             }
-          }
+          }.some // it should be possible to use traverse here
         }
-      }
+      } getOrElse(UIO.succeed(None))
     } yield exam
   }
 

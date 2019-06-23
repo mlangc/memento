@@ -7,8 +7,8 @@ import com.github.mlangc.memento.db.model.Check
 import com.github.mlangc.memento.db.model.Direction
 import com.github.mlangc.memento.db.model.Score
 import com.github.mlangc.memento.db.model.Translation
-import scalaz.zio.Managed
-import scalaz.zio.Task
+import zio.Managed
+import zio.Task
 
 import eu.timepit.refined.auto._
 

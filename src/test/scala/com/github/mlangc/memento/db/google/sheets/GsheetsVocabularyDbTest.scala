@@ -6,8 +6,8 @@ import com.github.mlangc.memento.db.VocabularyDb
 import com.github.mlangc.memento.db.GenericVocabularyDbTest
 import com.github.mlangc.memento.db.model.Synonym
 import com.github.mlangc.memento.db.model.Translation
-import scalaz.zio.Managed
-import scalaz.zio.Task
+import zio.Managed
+import zio.Task
 
 import eu.timepit.refined.auto._
 

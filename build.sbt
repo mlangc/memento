@@ -61,8 +61,6 @@ scalacOptions in(Compile, console) --= Seq("-Ywarn-unused:imports", "-Xfatal-war
 val catsVersion = "1.6.1"
 val zioVersion = "1.0.0-RC8-12"
 val refinedVersion = "0.9.8"
-val log4j2Version = "2.11.2"
-
 
 libraryDependencies += "dev.zio" %% "zio-interop-cats" % zioVersion
 
@@ -97,14 +95,12 @@ libraryDependencies ++= Seq(
 libraryDependencies += "com.statemachinesystems" % "mock-clock" % "1.0" % Test
 libraryDependencies += "info.debatty" % "java-string-similarity" % "1.2.1"
 
-libraryDependencies += "org.apache.logging.log4j" % "log4j-api" % log4j2Version
-libraryDependencies += "org.apache.logging.log4j" % "log4j-core" % log4j2Version
-libraryDependencies += "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4j2Version
-
 libraryDependencies += "com.github.mlangc" %% "slf4zio" % "0.1.0-SNAPSHOT"
 libraryDependencies += "org.fusesource.jansi" % "jansi" % "1.18"
 
 libraryDependencies += "org.fusesource.jansi" % "jansi" % "1.18"
 libraryDependencies += "org.jline" % "jline-reader" % "3.11.0"
+
+libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.2.3"
 
 

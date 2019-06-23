@@ -7,6 +7,7 @@ import java.util.Collections
 
 import com.github.mlangc.memento.db.VocabularyDb
 import com.github.mlangc.memento.db.model._
+import com.github.mlangc.slf4zio.api.LoggingSupport
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp
 import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver
 import com.google.api.client.googleapis.auth.oauth2.{GoogleAuthorizationCodeFlow, GoogleClientSecrets}
@@ -21,13 +22,14 @@ import eu.timepit.refined.refineV
 import zio.Task
 
 import scala.collection.JavaConverters._
+import scala.concurrent.duration._
 import scala.util.Try
 
-private[sheets] class GsheetsVocabularyDb private(sheetId: String, sheets: Sheets) extends VocabularyDb {
+private[sheets] class GsheetsVocabularyDb private(sheetId: String, sheets: Sheets) extends VocabularyDb with LoggingSupport {
   def load: Task[VocabularyData] = Task {
     val sheetValues = sheets.spreadsheets().values()
 
-    def getRawValues(range: String): util.List[util.List[AnyRef]] = {
+    def getRawValues(range: String): util.List[util.List[AnyRef]] = logDebugPerformance(20.milli, d => s"grabbing values took ${d.toMillis}ms") {
       Option(sheetValues.get(sheetId, range).execute().getValues)
         .getOrElse(util.Collections.emptyList())
     }
@@ -120,10 +122,12 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: String, sheets: Sheet
       }
     }
 
-    sheets.spreadsheets().values()
-      .append(sheetId, "Checks!A2:E", valueRange)
-      .setValueInputOption("USER_ENTERED")
-      .execute()
+    logDebugPerformance(10.milli, d => s"Updating sheet took ${d.toMillis}ms") {
+      sheets.spreadsheets().values()
+        .append(sheetId, "Checks!A2:E", valueRange)
+        .setValueInputOption("USER_ENTERED")
+        .execute()
+    }
   }.unit
 }
 

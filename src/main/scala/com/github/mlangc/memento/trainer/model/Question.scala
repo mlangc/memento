@@ -13,6 +13,7 @@ import com.github.mlangc.memento.i18n.MotivatorMessages
 import com.github.mlangc.memento.trainer.model.Question.Motivator
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.NonNegative
+import eu.timepit.refined.auto._
 
 case class Question(translation: Translation,
                     direction: Direction,
@@ -26,6 +27,8 @@ case class Question(translation: Translation,
   }
 
   def toCard: Card = Card(translation, direction)
+
+  def revealed: RevealedRatio = hint.map(_.revealed).getOrElse(0.0: RevealedRatio)
 }
 
 object Question {

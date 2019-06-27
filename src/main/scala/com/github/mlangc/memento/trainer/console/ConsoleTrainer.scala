@@ -1,7 +1,11 @@
 package com.github.mlangc.memento.trainer.console
 
 import java.io.File
+import java.util.Collections
 
+import cats.instances.string._
+import cats.syntax.eq._
+import com.github.difflib.text.DiffRowGenerator
 import com.github.mlangc.memento.db.VocabularyDb
 import com.github.mlangc.memento.db.google.sheets.GsheetsCfg
 import com.github.mlangc.memento.db.google.sheets.GsheetsVocabularyDb
@@ -17,6 +21,7 @@ import com.github.mlangc.memento.trainer.examiner.Exam
 import com.github.mlangc.memento.trainer.examiner.Examiner
 import com.github.mlangc.memento.trainer.model.Answer
 import com.github.mlangc.memento.trainer.model.Feedback
+import com.github.mlangc.memento.trainer.model.Feedback.Correction
 import com.github.mlangc.memento.trainer.model.Question
 import com.github.mlangc.memento.trainer.repetition.leitner.LeitnerRepetitionScheme
 import com.github.mlangc.memento.util.convenience.syntax.ciris._
@@ -46,27 +51,57 @@ class ConsoleTrainer(consoleMessages: ConsoleMessages, motivatorMessages: Motiva
 
   private def runExam(exam: Exam): Task[Unit] = {
     exam.nextQuestion(doAsk(exam)).flatMap {
-      case Some(feedback) => printFeedback(feedback) *> eventuallyWaitForEnter(feedback) *> clearScreen *> runExam(exam)
-      case None => Task.unit
+      case (question, Some(feedback)) => printFeedback(question, feedback) *> eventuallyWaitForEnter(feedback) *> clearScreen *> runExam(exam)
+      case (_, None) => Task.unit
     }
   }
 
   private def eventuallyWaitForEnter(feedback: Feedback): Task[Unit] =
     if (feedback == Feedback.Postponed) Task.unit else Task {
+      println()
       print(consoleMessages.pressEnterToContinue)
       StdIn.readLine()
     }.unit
 
-  private def printFeedback(feedback: Feedback): Task[Unit] = Task {
+  private def printFeedback(question: Question, feedback: Feedback): Task[Unit] = Task {
     feedback match {
       case Feedback.Postponed => ()
-      case Feedback.Correction(_, score) => score match {
+      case correction @ Feedback.Correction(_, _, score) => score match {
         case Score.Perfect =>
+          println()
           println(score.toString)
 
         case _ =>
-          println(feedback.toString)
+          println()
+          println(renderFeedback(question, correction))
       }
+    }
+  }
+
+  private def renderFeedback(question: Question, correction: Correction): String = {
+    def diffGen: DiffRowGenerator = DiffRowGenerator
+      .create()
+      .showInlineDiffs(true)
+      .mergeOriginalRevised(true)
+      .oldTag(open => (if (open) ansi().fgRed() else ansi().fgDefault()).toString)
+      .newTag(open => (if (open) ansi().fgGreen() else ansi().fgDefault()).toString)
+      .build()
+
+    def diff = diffGen.generateDiffRows(
+      Collections.singletonList(correction.got),
+      Collections.singletonList(correction.expected.spelling.value)
+    ).get(0).getOldLine
+
+    val expected = correction.expected.spelling.value
+    val percentageRevealed = (question.revealed.value * 100).round.toInt
+
+    if (expected === correction.got) {
+      consoleMessages.correctAnswerWithScore(percentageRevealed, correction.score)
+    } else if (question.revealed.value > 0) {
+      consoleMessages.wrongAnswerWithScoreRevealed(
+        expected, correction.got, diff, percentageRevealed, correction.score)
+    } else {
+      consoleMessages.wrongAnswerWithScore(expected, correction.got, diff, correction.score)
     }
   }
 

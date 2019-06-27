@@ -95,12 +95,13 @@ libraryDependencies ++= Seq(
 libraryDependencies += "com.statemachinesystems" % "mock-clock" % "1.0" % Test
 libraryDependencies += "info.debatty" % "java-string-similarity" % "1.2.1"
 
-libraryDependencies += "com.github.mlangc" %% "slf4zio" % "0.1.0-SNAPSHOT"
+libraryDependencies += "com.github.mlangc" %% "slf4zio" % "0.1.0"
 libraryDependencies += "org.fusesource.jansi" % "jansi" % "1.18"
 
 libraryDependencies += "org.fusesource.jansi" % "jansi" % "1.18"
 libraryDependencies += "org.jline" % "jline-reader" % "3.11.0"
 
 libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.2.3"
+libraryDependencies += "io.github.java-diff-utils" % "java-diff-utils" % "4.0"
 
 

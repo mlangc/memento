@@ -41,7 +41,7 @@ class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner {
                 feedback = answer.map(giveFeedback(question, trainingData.synonyms))
                 check <- safeFeedback(db, question, feedback)
                 _ <- examStateRef.update(updateExamState(question, answer, hinter, check))
-              } yield feedback
+              } yield (question, feedback)
             }
           }.some // it should be possible to use traverse here
         }
@@ -85,7 +85,7 @@ class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner {
   }
 
   private def toCheck(question: Question, feedback: Feedback): Task[Option[Check]] = feedback match {
-    case Feedback.Correction(_, score) =>
+    case Feedback.Correction(_, _, score) =>
       Task(Instant.now()).map {
         now =>
           Some(Check(question.translation, question.direction, score, now))
@@ -109,7 +109,7 @@ class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner {
   private def giveFeedback(question: Question, synonyms: Synonyms)(answer: Answer): Feedback = answer match {
     case answer: ScorableAnswer =>
       val score = Examiner.score(question, answer, synonyms)
-      Feedback.Correction(question.rightAnswer, score)
+      Feedback.Correction(question.rightAnswer, answer.value, score)
 
     case _ => Feedback.Postponed
   }

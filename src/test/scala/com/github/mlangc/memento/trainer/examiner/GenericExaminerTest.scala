@@ -37,7 +37,7 @@ abstract class GenericExaminerTest extends BaseZioTest with OptionValues {
       _ <- exam.nextQuestion(_ => Task.succeed(Some(Answer.Blank))).flatMap { feedback =>
         Task {
           feedback match {
-            case Some(Feedback.Correction(_, Score.Zero)) => ()
+            case (_, Some(Feedback.Correction(_, _, Score.Zero))) => ()
             case _ => fail()
           }
         }
@@ -46,7 +46,7 @@ abstract class GenericExaminerTest extends BaseZioTest with OptionValues {
       lastQuestionRef <- Ref.make[Option[Question]](None)
       _ <- exam.nextQuestion(q => lastQuestionRef.set(Some(q)) *> Task.succeed(Some(Answer.NeedHint))).flatMap { feedback =>
         Task {
-          assert(feedback === Some(Feedback.Postponed))
+          assert(feedback._2 === Some(Feedback.Postponed))
         }
       }
 
@@ -79,13 +79,13 @@ abstract class GenericExaminerTest extends BaseZioTest with OptionValues {
       }
 
       _ <- Task {
-        feedbackAfterAnswer.value match {
-          case Feedback.Correction(_, score) =>
+        feedbackAfterAnswer._2.value match {
+          case Feedback.Correction(_, _, score) =>
             assert(score !== Score.Perfect)
             assert(score !== Score.Zero)
 
           case _ =>
-            fail("" + feedbackAfterHint.value)
+            fail("" + feedbackAfterHint._2.value)
         }
       }
     } yield ()

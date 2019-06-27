@@ -2,6 +2,7 @@ package com.github.mlangc.memento.i18n
 
 import java.time.Instant
 
+import com.github.mlangc.memento.db.model.Score
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.NonNegative
 
@@ -12,4 +13,8 @@ trait ConsoleMessages {
   def lastAsked(instant: Option[Instant]): String
   def hint(hintStr: String): String
   def help(quitCmd: String, hintCmd: String): String
+
+  def correctAnswerWithScore(percentRevealed: Int, score: Score): String
+  def wrongAnswerWithScoreRevealed(expected: String, got: String, diff: String, percentageRevealed: Int, score: Score): String
+  def wrongAnswerWithScore(expected: String, got: String, diff: String, score: Score): String
 }

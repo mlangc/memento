@@ -8,16 +8,16 @@ import com.github.mlangc.memento.trainer.model.Question
 import zio.Task
 
 trait Exam {
-  def nextQuestion(ask: Question => Task[Option[Answer]]): Task[Option[Feedback]]
+  def nextQuestion(ask: Question => Task[Option[Answer]]): Task[(Question, Option[Feedback])]
   def language1: LanguageName
   def language2: LanguageName
 }
 
 object Exam {
   def create(vocabularyData: VocabularyData)
-            (next: (Question => Task[Option[Answer]]) => Task[Option[Feedback]])
+            (next: (Question => Task[Option[Answer]]) => Task[(Question, Option[Feedback])])
   : Exam = new Exam {
-    def nextQuestion(ask: Question => Task[Option[Answer]]): Task[Option[Feedback]] = next(ask)
+    def nextQuestion(ask: Question => Task[Option[Answer]]): Task[(Question, Option[Feedback])] = next(ask)
 
     def language1: LanguageName = vocabularyData.language1
     def language2: LanguageName = vocabularyData.language2

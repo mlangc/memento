@@ -29,7 +29,7 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: String, sheets: Sheet
   def load: Task[VocabularyData] = Task {
     val sheetValues = sheets.spreadsheets().values()
 
-    def getRawValues(range: String): util.List[util.List[AnyRef]] = logDebugPerformance(20.milli, d => s"grabbing values took ${d.toMillis}ms") {
+    def getRawValues(range: String): util.List[util.List[AnyRef]] = logDebugPerformance(d => s"grabbing values took ${d.toMillis}ms", 20.millis) {
       Option(sheetValues.get(sheetId, range).execute().getValues)
         .getOrElse(util.Collections.emptyList())
     }
@@ -122,7 +122,7 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: String, sheets: Sheet
       }
     }
 
-    logDebugPerformance(10.milli, d => s"Updating sheet took ${d.toMillis}ms") {
+    logDebugPerformance(d => s"Updating sheet took ${d.toMillis}ms", 10.millis) {
       sheets.spreadsheets().values()
         .append(sheetId, "Checks!A2:E", valueRange)
         .setValueInputOption("USER_ENTERED")

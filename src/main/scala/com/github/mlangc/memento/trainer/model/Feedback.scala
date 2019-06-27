@@ -6,13 +6,13 @@ import com.github.mlangc.memento.trainer.model.Feedback.Correction
 
 sealed trait Feedback {
   def maybeScore: Option[Score] = this match {
-    case Correction(_, score) => Some(score)
+    case Correction(_, _, score) => Some(score)
     case _ => None
   }
 }
 
 object Feedback {
-  case class Correction(word: Vocabulary, score: Score) extends Feedback
+  case class Correction(expected: Vocabulary, got: String, score: Score) extends Feedback
   object Postponed extends Feedback
 }
 

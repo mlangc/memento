@@ -17,4 +17,8 @@ trait ConsoleMessages {
   def correctAnswerWithScore(percentRevealed: Int, score: Score): String
   def wrongAnswerWithScoreRevealed(expected: String, got: String, diff: String, percentageRevealed: Int, score: Score): String
   def wrongAnswerWithScore(expected: String, got: String, diff: String, score: Score): String
+
+  def allDoneContinueAnyway: String
+  def promptYesNoDefaultingToNo: String
+  def isYes(s: String): Boolean
 }

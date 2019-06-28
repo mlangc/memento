@@ -31,7 +31,7 @@ class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner {
           examStateRef <- Ref.make(ExamState())
           semaphore <- Semaphore.make(1)
         } yield {
-          Exam.create(data) { (ask: Question => Task[Option[Answer]]) =>
+          Exam.create(data)(schemeImpl.status.map(_.shouldStop)) { (ask: Question => Task[Option[Answer]]) =>
             semaphore.withPermit {
               for {
                 state <- examStateRef.get

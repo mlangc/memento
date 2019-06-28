@@ -30,13 +30,16 @@ import org.fusesource.jansi.AnsiConsole.out.print
 import org.fusesource.jansi.AnsiConsole.out.println
 import org.jline.reader.LineReaderBuilder
 import zio.App
+import zio.Ref
 import zio.Task
 import zio.ZIO
 
 import scala.io.StdIn
 
 
-class ConsoleTrainer(consoleMessages: ConsoleMessages, motivatorMessages: MotivatorMessages) extends VocabularyTrainer {
+class ConsoleTrainer(consoleMessages: ConsoleMessages,
+                     motivatorMessages: MotivatorMessages,
+                     stopMessageDismissedRef: Ref[Boolean]) extends VocabularyTrainer {
   private val reader = LineReaderBuilder.builder().build()
 
   private val QuitCmd = ":q"
@@ -50,9 +53,35 @@ class ConsoleTrainer(consoleMessages: ConsoleMessages, motivatorMessages: Motiva
     }
 
   private def runExam(exam: Exam): Task[Unit] = {
-    exam.nextQuestion(doAsk(exam)).flatMap {
-      case (question, Some(feedback)) => printFeedback(question, feedback) *> eventuallyWaitForEnter(feedback) *> clearScreen *> runExam(exam)
-      case (_, None) => Task.unit
+    def continueExam: Task[Unit] =
+      exam.nextQuestion(doAsk(exam)).flatMap {
+        case (question, Some(feedback)) => printFeedback(question, feedback) *> eventuallyWaitForEnter(feedback) *> clearScreen *> runExam(exam)
+        case (_, None) => Task.unit
+      }
+
+    def continue: Task[Boolean] =
+      for {
+        shouldStop <- exam.shouldStop
+        dismissed <- stopMessageDismissedRef.get
+      } yield !shouldStop || dismissed
+
+    def askIfContinue: Task[Boolean] =
+      Task {
+        println(consoleMessages.allDoneContinueAnyway)
+        val resp = reader.readLine(consoleMessages.promptYesNoDefaultingToNo)
+        consoleMessages.isYes(resp)
+      }.tap { continueExam =>
+        if (continueExam) stopMessageDismissedRef.set(true)
+        else Task.unit
+      }
+
+    continue.flatMap { continue =>
+      if (continue) continueExam else {
+        askIfContinue.flatMap {
+          case true => continueExam
+          case false => Task.unit
+        }
+      }
     }
   }
 
@@ -161,7 +190,8 @@ object ConsoleTrainer extends App {
       credentialsPath <- GsheetsCfg.credentialsPath.orDie
       db <- GsheetsVocabularyDb.make(sheetId, new File(credentialsPath))
       messages <- Messages.forDefaultLocale
-      trainer = new ConsoleTrainer(messages.console, messages.motivator)
+      stopMessageDismissedRef <- Ref.make(false)
+      trainer = new ConsoleTrainer(messages.console, messages.motivator, stopMessageDismissedRef)
       _ <- trainer.train(db, new DefaultExaminer(new LeitnerRepetitionScheme))
     } yield 0).orDie
   }

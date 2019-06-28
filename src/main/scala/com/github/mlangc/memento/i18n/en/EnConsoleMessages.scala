@@ -29,4 +29,8 @@ class EnConsoleMessages extends ConsoleMessages {
 
   def wrongAnswerWithScore(expected: String, got: String, diff: String, score: Score): String =
     s"$score[$diff]: Expected '$expected' but got '$got'"
+
+  def allDoneContinueAnyway = "All done, do you want to continue anyway?"
+  def promptYesNoDefaultingToNo = "yN > "
+  def isYes(s: String): Boolean = s.toLowerCase == "y"
 }

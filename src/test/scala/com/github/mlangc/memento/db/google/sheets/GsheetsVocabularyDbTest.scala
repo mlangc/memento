@@ -8,24 +8,31 @@ import com.github.mlangc.memento.db.model.Synonym
 import com.github.mlangc.memento.db.model.Translation
 import zio.Managed
 import zio.Task
-
 import eu.timepit.refined.auto._
 
+import com.github.ghik.silencer.silent
+
+@silent("`Any`")
 class GsheetsVocabularyDbTest extends GenericVocabularyDbTest {
-  private val sheetId = ciris.env[String]("TEST_SHEET_ID").value.right.getOrElse("")
-  private val credentialsPath = ciris.env[String]("GOOGLE_CREDENTIALS_PATH").value.right.getOrElse("")
+  private def testSheetIdVar = "TEST_SHEET_ID"
+  private def credentialsPathVar = "GOOGLE_CREDENTIALS_PATH"
 
-  protected def db: Managed[Throwable, VocabularyDb] = Managed.fromEffect {
-    assume(sheetId.nonEmpty)
-    assume(credentialsPath.nonEmpty)
+  private lazy val sheetId = ciris.env[String](testSheetIdVar).value.right.getOrElse("")
+  private lazy val credentialsPath = ciris.env[String](credentialsPathVar).value.right.getOrElse("")
 
-    GsheetsVocabularyDb.make(sheetId, new File(credentialsPath))
+  protected def db: Managed[Throwable, VocabularyDb] = {
+    assume(sheetId.nonEmpty, s"Please set $testSheetIdVar")
+    assume(credentialsPath.nonEmpty, s"Please set $credentialsPathVar")
+
+    Managed.fromEffect {
+      GsheetsVocabularyDb.make(sheetId, new File(credentialsPath))
+    }
   }
 
-  "Verify that data is loaded correctly" in {
-    unsafeRun {
-      db.use { db =>
-        db.load.flatMap { data => Task {
+  "Verify that data is loaded correctly" inIO {
+    db.use { db =>
+      db.load.flatMap { data =>
+        Task {
           assert(data.translations.contains(Translation("ich", "je")))
           assert(data.translations.contains(Translation("sie", "elle")))
           assert(data.checks.filter(_.translation == Translation("test", "test")).nonEmpty)
@@ -33,7 +40,7 @@ class GsheetsVocabularyDbTest extends GenericVocabularyDbTest {
           assert(data.synonyms2.contains(Synonym("forêt", "bois")))
           assert(data.language1 === "Deutsch")
           assert(data.language2 === "Französisch")
-        }}
+        }
       }
     }
   }

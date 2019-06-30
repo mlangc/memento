@@ -21,7 +21,7 @@ scalacOptions ++= Seq(
   "-language:implicitConversions", // Allow definition of implicit functions called views
   "-unchecked", // Enable additional warnings where generated code depends on assumptions.
   "-Xcheckinit", // Wrap field accessors to throw an exception on uninitialized access.
-  "-Xfatal-warnings",                  // Fail the compilation if there are any warnings.
+  "-Xfatal-warnings", // Fail the compilation if there are any warnings.
   "-Xfuture", // Turn on future language features.
   "-Xlint:adapted-args", // Warn if an argument list is modified to match the receiver.
   "-Xlint:by-name-right-associative", // By-name parameter of right associative operator.
@@ -61,6 +61,7 @@ scalacOptions in(Compile, console) --= Seq("-Ywarn-unused:imports", "-Xfatal-war
 val catsVersion = "1.6.1"
 val zioVersion = "1.0.0-RC8-12"
 val refinedVersion = "0.9.8"
+val silencerVersion = "1.4.1"
 
 libraryDependencies += "dev.zio" %% "zio-interop-cats" % zioVersion
 
@@ -103,5 +104,10 @@ libraryDependencies += "org.jline" % "jline-reader" % "3.11.0"
 
 libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.2.3"
 libraryDependencies += "io.github.java-diff-utils" % "java-diff-utils" % "4.0"
+
+libraryDependencies ++= Seq(
+  compilerPlugin("com.github.ghik" %% "silencer-plugin" % silencerVersion),
+  "com.github.ghik" %% "silencer-lib" % silencerVersion % Provided
+)
 
 

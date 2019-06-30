@@ -10,10 +10,10 @@ import com.github.mlangc.memento.trainer.model.ScorableAnswer
 import com.github.mlangc.memento.trainer.model.Synonyms
 import eu.timepit.refined.auto._
 import info.debatty.java.stringsimilarity.NormalizedLevenshtein
-import zio.Task
+import zio.Managed
 
 trait Examiner {
-  def prepareExam(db: VocabularyDb): Task[Option[Exam]]
+  def prepareExam(db: VocabularyDb): Managed[Throwable, Option[Exam]]
 }
 
 object Examiner {

@@ -4,11 +4,18 @@ import java.time.Instant
 
 import cats.syntax.option._
 import com.github.mlangc.memento.db.VocabularyDb
-import com.github.mlangc.memento.db.model.{Check, VocabularyData}
+import com.github.mlangc.memento.db.model.Check
+import com.github.mlangc.memento.db.model.VocabularyData
 import com.github.mlangc.memento.trainer.examiner.DefaultExaminer.ExamState
 import com.github.mlangc.memento.trainer.model._
 import com.github.mlangc.memento.trainer.repetition.RepetitionScheme
-import zio.{Ref, Semaphore, Task, UIO}
+import com.github.mlangc.slf4zio.api._
+import zio.Managed
+import zio.Queue
+import zio.Ref
+import zio.Semaphore
+import zio.Task
+import zio.UIO
 
 object DefaultExaminer {
   private case class ExamState(lastQuestion: Option[Question] = None,
@@ -17,36 +24,56 @@ object DefaultExaminer {
                                spellingHinter: Option[SpellingHinter] = None)
 }
 
-class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner {
-  def prepareExam(db: VocabularyDb): Task[Option[Exam]] =
-    db.load.flatMap(data => mkExam(db, data))
+class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner with LoggingSupport {
+  def prepareExam(db: VocabularyDb): Managed[Throwable, Option[Exam]] =
+    Managed.fromEffect(db.load).flatMap(data => mkExam(db, data))
 
-  private def mkExam(db: VocabularyDb, data: VocabularyData): Task[Option[Exam]] = {
-    val trainingData = TrainingData.convert(data)
+  private def mkExam(db: VocabularyDb, data: VocabularyData): Managed[Throwable, Option[Exam]] = {
+    def addChecksTillNone(queue: Queue[Option[Check]]): Task[Unit] =
+      queue.take.flatMap {
+        case None => Task.unit
+        case Some(check) => db.addCheck(check) *> addChecksTillNone(queue)
+      }
 
-    for {
-      maybeSchemeImpl <- repetitionScheme.implement(trainingData)
-      exam <- maybeSchemeImpl.map { schemeImpl =>
-        for {
-          examStateRef <- Ref.make(ExamState())
-          semaphore <- Semaphore.make(1)
-        } yield {
-          Exam.create(data)(schemeImpl.status.map(_.shouldStop)) { (ask: Question => Task[Option[Answer]]) =>
-            semaphore.withPermit {
-              for {
-                state <- examStateRef.get
-                questionAndHinter <- nextQuestion(state, schemeImpl)
-                (question, hinter) = questionAndHinter
-                answer <- ask(question)
-                feedback = answer.map(giveFeedback(question, trainingData.synonyms))
-                check <- safeFeedback(db, question, feedback)
-                _ <- examStateRef.update(updateExamState(question, answer, hinter, check))
-              } yield (question, feedback)
-            }
-          }.some // it should be possible to use traverse here
-        }
-      } getOrElse(UIO.succeed(None))
-    } yield exam
+    val addChecksQueueWithWorkerFiber: Managed[Throwable, Queue[Option[Check]]] = {
+      def acquire: UIO[Queue[Option[Check]]] = for {
+        queue <- Queue.bounded[Option[Check]](1)
+        _ <- addChecksTillNone(queue).fork
+      } yield queue
+
+      def release(queue: Queue[Option[Check]]): UIO[Unit] =
+        queue.offer(None).unit
+
+      Managed.make(acquire)(release)
+    }
+
+    addChecksQueueWithWorkerFiber.mapM { queue =>
+      val trainingData = TrainingData.convert(data)
+
+      for {
+        maybeSchemeImpl <- repetitionScheme.implement(trainingData)
+        exam <- maybeSchemeImpl.map { schemeImpl =>
+          for {
+            examStateRef <- Ref.make(ExamState())
+            semaphore <- Semaphore.make(1)
+          } yield {
+            Exam.create(data)(schemeImpl.status.map(_.shouldStop)) { (ask: Question => Task[Option[Answer]]) =>
+              semaphore.withPermit {
+                for {
+                  state <- examStateRef.get
+                  questionAndHinter <- nextQuestion(state, schemeImpl)
+                  (question, hinter) = questionAndHinter
+                  answer <- ask(question)
+                  feedback = answer.map(giveFeedback(question, trainingData.synonyms))
+                  check <- safeFeedback(question, feedback, queue)
+                  _ <- examStateRef.update(updateExamState(question, answer, hinter, check))
+                } yield (question, feedback)
+              }
+            }.some // it should be possible to use traverse here
+          }
+        } getOrElse(UIO.succeed(None))
+      } yield exam
+    }
   }
 
   private def updateExamState(question: Question,
@@ -95,14 +122,14 @@ class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner {
   }
 
 
-  private def safeFeedback(db: VocabularyDb,
-                           question: Question,
-                           maybeFeedback: Option[Feedback]): Task[Option[Check]] = maybeFeedback match {
+  private def safeFeedback(question: Question,
+                           maybeFeedback: Option[Feedback],
+                           checksToAdd: Queue[Option[Check]]): Task[Option[Check]] = maybeFeedback match {
     case None => Task.succeed(None)
     case Some(feedback) =>
       for {
         check <- toCheck(question, feedback)
-        _ <- check.map(db.addCheck).getOrElse(Task.unit)
+        _ <- check.map(check => checksToAdd.offer(check.some)).getOrElse(Task.unit)
       } yield check
   }
 

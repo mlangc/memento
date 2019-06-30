@@ -27,6 +27,7 @@
 
     <logger name="com.github.mlangc.memento" level="info"/>
     <logger name="com.github.mlangc.memento.db.google.sheets.GsheetsVocabularyDb" level="debug"/>
+    <logger name="com.github.mlangc.memento.trainer.console.ConsoleTrainer" level="debug"/>
 
     <root level="warn">
         <appender-ref ref="FILE"/>

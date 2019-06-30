@@ -25,6 +25,7 @@ import com.github.mlangc.memento.trainer.model.Feedback.Correction
 import com.github.mlangc.memento.trainer.model.Question
 import com.github.mlangc.memento.trainer.repetition.leitner.LeitnerRepetitionScheme
 import com.github.mlangc.memento.util.convenience.syntax.ciris._
+import com.github.mlangc.slf4zio.api.LoggingSupport
 import org.fusesource.jansi.Ansi.ansi
 import org.fusesource.jansi.AnsiConsole.out.print
 import org.fusesource.jansi.AnsiConsole.out.println
@@ -34,12 +35,16 @@ import zio.Ref
 import zio.Task
 import zio.ZIO
 
+import com.github.mlangc.slf4zio.api._
+
 import scala.io.StdIn
 
 
-class ConsoleTrainer(consoleMessages: ConsoleMessages,
-                     motivatorMessages: MotivatorMessages,
-                     stopMessageDismissedRef: Ref[Boolean]) extends VocabularyTrainer {
+class ConsoleTrainer private(consoleMessages: ConsoleMessages,
+                             motivatorMessages: MotivatorMessages,
+                             stopMessageDismissedRef: Ref[Boolean])
+  extends VocabularyTrainer with LoggingSupport {
+
   private val reader = LineReaderBuilder.builder().build()
 
   private val QuitCmd = ":q"
@@ -47,7 +52,7 @@ class ConsoleTrainer(consoleMessages: ConsoleMessages,
   private val HintCmdObsolete = "?"
 
   def train(db: VocabularyDb, examiner: Examiner): Task[Unit] =
-    examiner.prepareExam(db).flatMap {
+    examiner.prepareExam(db).use {
       case None => Task(println(consoleMessages.noDataToTrainOn))
       case Some(exam) => clearScreen *> runExam(exam)
     }
@@ -63,6 +68,7 @@ class ConsoleTrainer(consoleMessages: ConsoleMessages,
       for {
         shouldStop <- exam.shouldStop
         dismissed <- stopMessageDismissedRef.get
+        _ <- logger.debugIO(s"shouldStop: $shouldStop, dismissed: $dismissed")
       } yield !shouldStop || dismissed
 
     def askIfContinue: Task[Boolean] =
@@ -95,7 +101,7 @@ class ConsoleTrainer(consoleMessages: ConsoleMessages,
   private def printFeedback(question: Question, feedback: Feedback): Task[Unit] = Task {
     feedback match {
       case Feedback.Postponed => ()
-      case correction @ Feedback.Correction(_, _, score) => score match {
+      case correction@Feedback.Correction(_, _, score) => score match {
         case Score.Perfect =>
           println()
           println(score.toString)
@@ -184,7 +190,6 @@ class ConsoleTrainer(consoleMessages: ConsoleMessages,
 
 object ConsoleTrainer extends App {
   def run(args: List[String]): ZIO[Environment, Nothing, Int] = {
-
     (for {
       sheetId <- GsheetsCfg.sheetId.orDie
       credentialsPath <- GsheetsCfg.credentialsPath.orDie

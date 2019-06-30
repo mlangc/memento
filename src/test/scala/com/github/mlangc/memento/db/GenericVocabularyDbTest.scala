@@ -15,20 +15,18 @@ import eu.timepit.refined.auto._
 abstract class GenericVocabularyDbTest extends BaseZioTest {
   protected def db: Managed[Throwable, VocabularyDb]
 
-  "Make sure that our DB behaves sane" in {
-    unsafeRun {
-      db.use { db =>
-        for {
-          now <- Task(Instant.now())
-          data1 <- db.load
-          check = Check(Translation("test1", "test2"), Direction.LeftToRight, Score.Perfect, now)
-          _ <- db.addCheck(check)
-          data2 <- db.load
-          _ <- Task {
-            assert(data2 === data1.copy(checks = data1.checks :+ check))
-          }
-        } yield ()
-      }
+  "Make sure that our DB behaves sane" inIO {
+    db.use { db =>
+      for {
+        now <- Task(Instant.now())
+        data1 <- db.load
+        check = Check(Translation("test1", "test2"), Direction.LeftToRight, Score.Perfect, now)
+        _ <- db.addCheck(check)
+        data2 <- db.load
+        _ <- Task {
+          assert(data2 === data1.copy(checks = data1.checks :+ check))
+        }
+      } yield ()
     }
   }
 }

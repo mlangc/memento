@@ -3,27 +3,34 @@ package com.github.mlangc.memento.trainer.repetition.leitner
 import java.time.Instant
 import java.time.ZoneId
 
+import com.github.ghik.silencer.silent
 import com.github.mlangc.memento.db.model.Check
 import com.github.mlangc.memento.db.model.Direction
 import com.github.mlangc.memento.db.model.Score
 import com.github.mlangc.memento.generators.TrainerGens
-import com.github.mlangc.memento.trainer.model.{Card, Question, TestTrainingData}
+import com.github.mlangc.memento.trainer.model.TrainingData
+import com.github.mlangc.memento.trainer.model.Card
+import com.github.mlangc.memento.trainer.model.Question
+import com.github.mlangc.memento.trainer.model.TestTrainingData
 import com.github.mlangc.memento.trainer.repetition.GenericRepetitionSchemeTest
 import com.github.mlangc.memento.trainer.repetition.RepetitionStatus
 import com.github.mlangc.memento.trainer.repetition.leitner.LeitnerRepetitionScheme.BoxInfoMotivator
 import com.github.mlangc.memento.trainer.repetition.leitner.LeitnerRepetitionScheme.CardInfoMotivator
 import com.github.mlangc.memento.trainer.repetition.leitner.TestBoxSpecs.defaultBoxSpecs
+import com.github.mlangc.slf4zio.api._
 import com.statemachinesystems.mockclock.MockClock
 import eu.timepit.refined.auto._
+import org.scalacheck.Gen
+import org.scalatest.OptionValues
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import zio.IO
 import zio.Task
 import zio.UIO
 
 import scala.concurrent.duration._
-import com.github.mlangc.slf4zio.api._
 
-class LeitnerRepetitionSchemeTest extends GenericRepetitionSchemeTest with ScalaCheckPropertyChecks with LoggingSupport {
+@silent("non-Unit")
+class LeitnerRepetitionSchemeTest extends GenericRepetitionSchemeTest with ScalaCheckPropertyChecks with LoggingSupport with OptionValues {
 
   protected lazy val scheme: LeitnerRepetitionScheme = new LeitnerRepetitionScheme(defaultBoxSpecs)
 
@@ -111,24 +118,28 @@ class LeitnerRepetitionSchemeTest extends GenericRepetitionSchemeTest with Scala
     "generated data" - {
       lazy val trainerGens = new TrainerGens()
 
+      def mkSchemeImplWithMockClock(trainingData: TrainingData): Task[Option[(LeitnerRepetitionScheme.Impl, MockClock)]] = {
+        val latestCheckTs = {
+          if (trainingData.checks.isEmpty) Instant.EPOCH
+          else trainingData.checks.maxBy(_.timestamp).timestamp
+        }
+
+        mkSchemeWithMockClock(latestCheckTs).flatMap { case (scheme, clock) =>
+          scheme.implement(trainingData).map {
+            case Some(impl: LeitnerRepetitionScheme.Impl) => Some(impl -> clock)
+            case _ => None
+          }
+        }
+      }
+
+      lazy val schemeImplWithMockClockGen: Gen[Task[Option[(LeitnerRepetitionScheme.Impl, MockClock)]]] =
+        trainerGens.trainingData
+          .map(data => mkSchemeImplWithMockClock(data))
+
       "making sure that dormant questions are not asked unless needed" in {
-        forAll(trainerGens.trainingData) { trainingData =>
-          val latestCheckTs = {
-            if (trainingData.checks.isEmpty) Instant.EPOCH
-            else trainingData.checks.maxBy(_.timestamp).timestamp
-          }
-
-          val mkSchemeImplWithMockClock: Task[Option[(LeitnerRepetitionScheme.Impl, MockClock)]] = {
-            mkSchemeWithMockClock(latestCheckTs).flatMap { case (scheme, clock) =>
-              scheme.implement(trainingData).map {
-                case Some(impl: LeitnerRepetitionScheme.Impl) => Some(impl -> clock)
-                case _ => None
-              }
-            }
-          }
-
+        forAll(schemeImplWithMockClockGen) { schemeImplWithMockClock =>
           unsafeRun {
-            mkSchemeImplWithMockClock.flatMap {
+            schemeImplWithMockClock.flatMap {
               case None => IO.unit
               case Some((impl, clock)) =>
 
@@ -169,7 +180,58 @@ class LeitnerRepetitionSchemeTest extends GenericRepetitionSchemeTest with Scala
           }
         }
       }
+
+      "make sure that signals that `shouldStop` as soon as all questions are dormant" in {
+        forAll(schemeImplWithMockClockGen) { implWithMockGen =>
+          unsafeRun {
+            implWithMockGen.flatMap {
+              case None => IO.unit
+              case Some((impl, clock)) =>
+                def tryFindOffendingSequence(acc: List[Check] = Nil): Task[Option[List[Check]]] = {
+                  val getNextQuestion: Task[Question] = acc match {
+                    case Nil => impl.next
+                    case check :: _ => impl.next(check)
+                  }
+
+                  for {
+                    question <- getNextQuestion
+                    cardState <- getCardStateFromMotivators(question)
+                    schemeState <- impl.status
+                    foundOffender = !schemeState.shouldStop && !cardState.shouldBeTested
+                    shouldGiveUp = !foundOffender && schemeState.shouldStop
+                    res <- {
+                      if (foundOffender) {
+                        Task.succeed(Some(acc))
+                      } else if (shouldGiveUp) {
+                        Task.succeed(None)
+                      } else {
+                        advanceClock(clock, 15.seconds) *> {
+                          val check = mkCheck(question, Score.Perfect, clock)
+                          tryFindOffendingSequence(check :: acc)
+                        }
+                      }
+                    }
+                  } yield res
+                }
+
+                for {
+                  offendingSeq <- tryFindOffendingSequence()
+                  _ <- offendingSeq match {
+                    case None => Task.unit
+                    case Some(offender) => Task.fail(new AssertionError(s"Found an offending sequence: $offender"))
+                  }
+                } yield ()
+            }
+          }
+        }
+      }
     }
+  }
+
+  private def getCardStateFromMotivators(question: Question): Task[CardState] = Task {
+    question.motivators.collectFirst {
+      case CardInfoMotivator(cardState) => cardState
+    }.value
   }
 
   private def mkSchemeWithMockClock(now: Instant): Task[(LeitnerRepetitionScheme, MockClock)] =

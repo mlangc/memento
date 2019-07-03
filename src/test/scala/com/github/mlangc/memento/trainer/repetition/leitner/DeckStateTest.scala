@@ -3,6 +3,7 @@ package com.github.mlangc.memento.trainer.repetition.leitner
 import java.time.Instant.EPOCH
 
 import cats.data.NonEmptyVector
+import com.github.ghik.silencer.silent
 import com.github.mlangc.memento.BaseTest
 import com.github.mlangc.memento.db.model.Direction._
 import com.github.mlangc.memento.db.model.Score.{Good, Perfect, SoSo}
@@ -15,6 +16,7 @@ import scala.concurrent.duration._
 import scala.util.Random
 import eu.timepit.refined.auto._
 
+@silent("non-Unit")
 class DeckStateTest extends BaseTest with ScalaCheckDrivenPropertyChecks {
   private val leitnerGens = new LeitnerGens()
   private def baseGens = leitnerGens.baseGens

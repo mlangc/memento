@@ -64,10 +64,9 @@ class ConsoleTrainer private(consoleMessages: ConsoleMessages,
         case (question, Some(feedback)) =>
           printFeedback(question, feedback) *> eventuallyWaitForEnter(feedback) *> clearScreen *> runExam(db, examiner, exam)
         case (_, None) =>
-          for {
-            reloading <- reloadingRef.get
-            _ <- if (reloading) reloadingRef.set(false) *> printReloadingMsg *> train(db, examiner) else Task.unit
-          } yield ()
+          ZIO.whenM(reloadingRef.get) {
+            reloadingRef.set(false) *> printReloadingMsg *> train(db, examiner)
+          }
       }
 
     def continue: Task[Boolean] =
@@ -158,7 +157,7 @@ class ConsoleTrainer private(consoleMessages: ConsoleMessages,
       input <- readInput(prompt)
       answer <- parseInput(input) match {
         case Right(answer) => Task.succeed(answer)
-        case Left(Reload) => reloadingRef.set(true).map(_ => None)
+        case Left(Reload) => reloadingRef.set(true).const(None)
       }
     } yield answer
 

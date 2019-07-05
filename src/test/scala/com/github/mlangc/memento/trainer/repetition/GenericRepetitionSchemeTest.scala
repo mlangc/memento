@@ -27,6 +27,9 @@ abstract class GenericRepetitionSchemeTest extends BaseZioTest with OptionValues
   protected final def implFor(scheme: RepetitionScheme, data: TrainingData): Task[RepetitionScheme.Impl] =
     scheme.implement(data).flatMap(impl => Task(impl.value))
 
+  protected final def updateAndNext(schemeImpl: RepetitionScheme.Impl, check: Check): Task[Question] =
+    schemeImpl.update(check) *> schemeImpl.next
+
   "Repeating without any prior training" - {
     "trivial cases" - {
       "an empty db" inIO {
@@ -42,7 +45,7 @@ abstract class GenericRepetitionSchemeTest extends BaseZioTest with OptionValues
           statusAtFirst <- impl.status
           question1 <- impl.next
           check1 <- toCheck(question1, Score.Good)
-          question2 <- impl.next(check1)
+          question2 <- impl.update(check1) *> impl.next
           _ <- Task {
             assert(statusAtFirst.shouldContinue)
             assert(question1.timesAskedBefore.value === 0)
@@ -92,7 +95,7 @@ abstract class GenericRepetitionSchemeTest extends BaseZioTest with OptionValues
     for {
       question0 <- impl.next
       questions <- ZIO.foldLeft(1.to(numQuestions.value - 1))(question0 :: Nil) { (qs, _) =>
-        toCheck(qs.head, Score.Perfect).flatMap(impl.next).map(_ :: qs)
+        toCheck(qs.head, Score.Perfect).flatMap(check => impl.update(check) *> impl.next).map(_ :: qs)
       }
     } yield questions
 

@@ -21,11 +21,11 @@ class GsheetsVocabularyDbTest extends GenericVocabularyDbTest {
   private lazy val credentialsPath = ciris.env[String](credentialsPathVar).value.right.getOrElse("")
 
   protected def db: Managed[Throwable, VocabularyDb] = {
-    assume(sheetId.nonEmpty, s"Please set $testSheetIdVar")
-    assume(credentialsPath.nonEmpty, s"Please set $credentialsPathVar")
-
     Managed.fromEffect {
-      GsheetsVocabularyDb.make(sheetId, new File(credentialsPath))
+      Task {
+        assume(sheetId.nonEmpty, s"Please set $testSheetIdVar")
+        assume(credentialsPath.nonEmpty, s"Please set $credentialsPathVar")
+      } *> GsheetsVocabularyDb.make(sheetId, new File(credentialsPath))
     }
   }
 

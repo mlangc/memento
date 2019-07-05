@@ -5,6 +5,7 @@ import com.github.mlangc.memento.db.model.VocabularyData
 import com.github.mlangc.memento.trainer.model.Answer
 import com.github.mlangc.memento.trainer.model.Feedback
 import com.github.mlangc.memento.trainer.model.Question
+import com.github.mlangc.slf4zio.api._
 import zio.Task
 
 trait Exam {
@@ -14,7 +15,7 @@ trait Exam {
   def shouldStop: Task[Boolean]
 }
 
-object Exam {
+object Exam extends LoggingSupport {
   def create(vocabularyData: VocabularyData)
             (stop: Task[Boolean])
             (next: (Question => Task[Option[Answer]]) => Task[(Question, Option[Feedback])])

@@ -16,6 +16,9 @@ import zio.Ref
 import zio.Semaphore
 import zio.Task
 import zio.UIO
+import cats.syntax.traverse._
+import cats.instances.option._
+import zio.interop.catz._
 
 object DefaultExaminer {
   private case class ExamState(lastQuestion: Option[Question] = None,
@@ -67,6 +70,7 @@ class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner with 
                   feedback = answer.map(giveFeedback(question, trainingData.synonyms))
                   check <- safeFeedback(question, feedback, queue)
                   _ <- examStateRef.update(updateExamState(question, answer, hinter, check))
+                  _ <- check.traverse(schemeImpl.update)
                 } yield (question, feedback)
               }
             }.some // it should be possible to use traverse here
@@ -99,15 +103,8 @@ class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner with 
           nextQuestion <- spellingHinter.nextHint.map(hint => lastQuestion.copy(hint = Some(hint)))
         } yield (nextQuestion, Some(spellingHinter))
 
-      case _ => {
-        state.lastCheck match {
-          case Some(check) =>
-            schemeImpl.next(check)
-
-          case _ =>
-            schemeImpl.next
-        }
-      }.map((_, None))
+      case _ =>
+        schemeImpl.next.map((_, None))
     }
   }
 

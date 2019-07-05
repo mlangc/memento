@@ -17,7 +17,6 @@ import com.github.mlangc.memento.trainer.repetition.RepetitionStatus
 import com.github.mlangc.memento.trainer.repetition.leitner.LeitnerRepetitionScheme.BoxInfoMotivator
 import com.github.mlangc.memento.trainer.repetition.leitner.LeitnerRepetitionScheme.CardInfoMotivator
 import com.github.mlangc.memento.trainer.repetition.leitner.TestBoxSpecs.defaultBoxSpecs
-import com.github.mlangc.slf4zio.api._
 import com.statemachinesystems.mockclock.MockClock
 import eu.timepit.refined.auto._
 import org.scalacheck.Gen
@@ -30,7 +29,7 @@ import zio.UIO
 import scala.concurrent.duration._
 
 @silent("non-Unit")
-class LeitnerRepetitionSchemeTest extends GenericRepetitionSchemeTest with ScalaCheckPropertyChecks with LoggingSupport with OptionValues {
+class LeitnerRepetitionSchemeTest extends GenericRepetitionSchemeTest with ScalaCheckPropertyChecks with OptionValues {
 
   protected lazy val scheme: LeitnerRepetitionScheme = new LeitnerRepetitionScheme(defaultBoxSpecs)
 
@@ -46,7 +45,7 @@ class LeitnerRepetitionSchemeTest extends GenericRepetitionSchemeTest with Scala
         schemeImpl <- implFor(scheme, testData)
         firstStatus <- schemeImpl.status
         _ <- Task(assert(firstStatus === RepetitionStatus.CardsLeft(2)))
-        firstReturnedQuestion <- schemeImpl.next(mkCheck(question2, Score.Perfect, clock))
+        firstReturnedQuestion <- updateAndNext(schemeImpl, mkCheck(question2, Score.Perfect, clock))
         _ <- Task(assert(firstReturnedQuestion.toCard === question1.toCard))
         _ <- checkMotivators(firstReturnedQuestion) { (cardInfo, boxInfo) =>
           assert(cardInfo.cardState === CardState.New)
@@ -55,14 +54,14 @@ class LeitnerRepetitionSchemeTest extends GenericRepetitionSchemeTest with Scala
           assert(boxInfo.nextBox.value === defaultBoxSpecs.getUnsafe(1))
           assert(boxInfo.canAdvance === false)
         }
-        _ <- schemeImpl.next(mkCheck(firstReturnedQuestion, Score.Perfect, clock))
+        _ <- updateAndNext(schemeImpl, mkCheck(firstReturnedQuestion, Score.Perfect, clock))
         statusAfterFirstRound <- schemeImpl.status
         _ <- Task(assert(statusAfterFirstRound === RepetitionStatus.ShouldStop))
 
         _ <- advanceClock(clock, defaultBoxSpecs.getUnsafe(0).interval)
         statusBeforeSecondRound <- schemeImpl.status
         _ <- Task(assert(statusBeforeSecondRound === RepetitionStatus.CardsLeft(2)))
-        _ <- schemeImpl.next(mkCheck(question1, Score.Perfect, clock)).flatMap { question =>
+        _ <- updateAndNext(schemeImpl, mkCheck(question1, Score.Perfect, clock)).flatMap { question =>
           checkMotivators(question) { (cardInfo, boxInfo) =>
             assert(cardInfo.cardState === CardState.Expired)
             assert(boxInfo.canAdvance === true)
@@ -70,14 +69,14 @@ class LeitnerRepetitionSchemeTest extends GenericRepetitionSchemeTest with Scala
             assert(boxInfo.nextBox.value === defaultBoxSpecs.getUnsafe(1))
           }
         }
-        _ <- schemeImpl.next(mkCheck(question2, Score.Perfect, clock))
+        _ <- updateAndNext(schemeImpl, mkCheck(question2, Score.Perfect, clock))
         statusAfterSecondRound <- schemeImpl.status
         _ <- Task(assert(statusAfterSecondRound === RepetitionStatus.ShouldStop))
 
         _ <- advanceClock(clock, defaultBoxSpecs.getUnsafe(1).interval)
         statusBeforeThirdRound <- schemeImpl.status
         _ <- Task(assert(statusBeforeThirdRound === RepetitionStatus.CardsLeft(2)))
-        _ <- schemeImpl.next(mkCheck(question1, Score.Perfect, clock)).flatMap { question =>
+        _ <- updateAndNext(schemeImpl, mkCheck(question1, Score.Perfect, clock)).flatMap { question =>
           checkMotivators(question) { (cardInfo, boxInfo) =>
             assert(cardInfo.cardState === CardState.Expired)
             assert(boxInfo.currentBox.index === 1)
@@ -85,23 +84,23 @@ class LeitnerRepetitionSchemeTest extends GenericRepetitionSchemeTest with Scala
             assert(boxInfo.nextBox.value === defaultBoxSpecs.getUnsafe(2))
           }
         }
-        _ <- schemeImpl.next(mkCheck(question2, Score.Perfect, clock))
+        _ <- updateAndNext(schemeImpl, mkCheck(question2, Score.Perfect, clock))
         statusAfterThirdRound <- schemeImpl.status
         _ <- Task(assert(statusAfterThirdRound === RepetitionStatus.ShouldStop))
 
         _ <- advanceClock(clock, defaultBoxSpecs.getUnsafe(2).interval)
         statusBefore4thRound <- schemeImpl.status
         _ <- Task(assert(statusBefore4thRound === RepetitionStatus.CardsLeft(2)))
-        _ <- schemeImpl.next(mkCheck(question1, Score.Perfect, clock))
-        _ <- schemeImpl.next(mkCheck(question2, Score.Perfect, clock))
+        _ <- updateAndNext(schemeImpl, mkCheck(question1, Score.Perfect, clock))
+        _ <- updateAndNext(schemeImpl, mkCheck(question2, Score.Perfect, clock))
         statusAfter4thRound <- schemeImpl.status
         _ <- Task(assert(statusAfter4thRound === RepetitionStatus.ShouldStop))
 
         _ <- advanceClock(clock, defaultBoxSpecs.getUnsafe(3).interval)
         statusBefore5thRound <- schemeImpl.status
         _ <- Task(assert(statusBefore5thRound === RepetitionStatus.CardsLeft(2)))
-        _ <- schemeImpl.next(mkCheck(question1, Score.Zero, clock))
-        _ <- schemeImpl.next(mkCheck(question2, Score.SoSo, clock))
+        _ <- updateAndNext(schemeImpl, mkCheck(question1, Score.Zero, clock))
+        _ <- updateAndNext(schemeImpl, mkCheck(question2, Score.SoSo, clock))
         statusAfter5thRound <- schemeImpl.status
         _ <- Task(assert(statusAfter5thRound === RepetitionStatus.CardsLeft(1)))
 
@@ -158,7 +157,7 @@ class LeitnerRepetitionSchemeTest extends GenericRepetitionSchemeTest with Scala
                       if (status.shouldStop) IO.succeed(acc) else {
                         val question = acc match {
                           case Nil => impl.next
-                          case lastQuestion :: _ => impl.next(Check(
+                          case lastQuestion :: _ => updateAndNext(impl, Check(
                             lastQuestion.translation, lastQuestion.direction, Score.Perfect, now))
                         }
 
@@ -190,7 +189,7 @@ class LeitnerRepetitionSchemeTest extends GenericRepetitionSchemeTest with Scala
                 def tryFindOffendingSequence(acc: List[Check] = Nil): Task[Option[List[Check]]] = {
                   val getNextQuestion: Task[Question] = acc match {
                     case Nil => impl.next
-                    case check :: _ => impl.next(check)
+                    case check :: _ => updateAndNext(impl, check)
                   }
 
                   for {

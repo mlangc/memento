@@ -21,7 +21,7 @@ trait RepetitionScheme {
 object RepetitionScheme {
   trait Impl {
     def next: Task[Question]
-    def next(check: Check): Task[Question]
+    def update(check: Check): Task[Unit]
     def status: Task[RepetitionStatus]
   }
 }

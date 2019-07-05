@@ -1,6 +1,8 @@
 package com.github.mlangc.memento
 
 import org.scalactic.source.Position
+import zio.Exit.Cause
+import zio.FiberFailure
 import zio.{DefaultRuntime, ZIO}
 
 abstract class BaseZioTest extends BaseTest with DefaultRuntime {
@@ -8,7 +10,13 @@ abstract class BaseZioTest extends BaseTest with DefaultRuntime {
     private val impl = new FreeSpecStringWrapper(string, position)
 
     def inIO[E, A](zio: ZIO[Environment, E, A]): Unit = {
-      impl.in(unsafeRun(zio))
+      impl.in {
+        unsafeRun(zio.either) match {
+          case Right(_) => ()
+          case Left(th: Throwable) => throw th
+          case Left(other) => throw new FiberFailure(Cause.fail(other))
+        }
+      }
     }
   }
 

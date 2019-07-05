@@ -25,8 +25,8 @@ object RandomRepetitionScheme extends RepetitionScheme {
               checks <- checksRef.get
             } yield Question.create(translation, direction, checks)
 
-          def next(check: Check): Task[Question] =
-            checksRef.update(check :: _) *> next
+          def update(check: Check): Task[Unit] =
+            checksRef.update(check :: _).unit
 
           def status: Task[RepetitionStatus] = Task.succeed(RepetitionStatus.ShouldContinue)
         }

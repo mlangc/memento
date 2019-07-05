@@ -35,8 +35,6 @@ import zio.Ref
 import zio.Task
 import zio.ZIO
 
-import com.github.mlangc.slf4zio.api._
-
 import scala.io.StdIn
 
 
@@ -68,7 +66,6 @@ class ConsoleTrainer private(consoleMessages: ConsoleMessages,
       for {
         shouldStop <- exam.shouldStop
         dismissed <- stopMessageDismissedRef.get
-        _ <- logger.debugIO(s"shouldStop: $shouldStop, dismissed: $dismissed")
       } yield !shouldStop || dismissed
 
     def askIfContinue: Task[Boolean] =

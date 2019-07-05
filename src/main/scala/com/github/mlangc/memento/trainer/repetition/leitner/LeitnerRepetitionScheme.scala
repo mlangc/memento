@@ -1,25 +1,37 @@
 package com.github.mlangc.memento.trainer.repetition.leitner
 
-import java.time.{Clock, Duration, Instant}
+import java.time.Clock
+import java.time.Duration
+import java.time.Instant
 import java.util.concurrent.ThreadLocalRandom
 
-import cats.data.{NonEmptyList, NonEmptyVector}
-import com.github.mlangc.memento.db.model.{Check, Translation}
+import cats.data.NonEmptyList
+import cats.data.NonEmptyVector
+import com.github.mlangc.memento.db.model.Check
+import com.github.mlangc.memento.db.model.Translation
 import com.github.mlangc.memento.i18n.MotivatorMessages
 import com.github.mlangc.memento.trainer.model.Question.Motivator
-import com.github.mlangc.memento.trainer.model.{Card, Question}
+import com.github.mlangc.memento.trainer.model.Card
+import com.github.mlangc.memento.trainer.model.Question
 import com.github.mlangc.memento.trainer.repetition.RepetitionStatus.ShouldStop
-import com.github.mlangc.memento.trainer.repetition.leitner.LeitnerRepetitionScheme.{BoxInfoMotivator, CardInfoMotivator}
-import com.github.mlangc.memento.trainer.repetition.{RepetitionScheme, RepetitionStatus}
+import com.github.mlangc.memento.trainer.repetition.leitner.LeitnerRepetitionScheme.BoxInfoMotivator
+import com.github.mlangc.memento.trainer.repetition.leitner.LeitnerRepetitionScheme.CardInfoMotivator
+import com.github.mlangc.memento.trainer.repetition.RepetitionScheme
+import com.github.mlangc.memento.trainer.repetition.RepetitionStatus
+import com.github.mlangc.slf4zio.api._
 import eu.timepit.refined.api.Refined
-import eu.timepit.refined.numeric.{NonNegative, Positive}
-import eu.timepit.refined.{refineV, _}
-import zio.{Ref, Task, UIO}
+import eu.timepit.refined.numeric.NonNegative
+import eu.timepit.refined.numeric.Positive
+import eu.timepit.refined.refineV
+import eu.timepit.refined._
+import zio.Ref
+import zio.Task
+import zio.UIO
 
 import scala.math.pow
 
 class LeitnerRepetitionScheme(boxSpecs: NonEmptyVector[BoxSpec] = BoxSpecs.defaultBoxSpecs,
-                              clock: Clock = Clock.systemDefaultZone()) extends RepetitionScheme {
+                              clock: Clock = Clock.systemDefaultZone()) extends RepetitionScheme with LoggingSupport {
 
   protected def implement(translations: NonEmptyVector[Translation],
                           checks: List[Check]): Task[LeitnerRepetitionScheme.Impl] =
@@ -34,23 +46,21 @@ class LeitnerRepetitionScheme(boxSpecs: NonEmptyVector[BoxSpec] = BoxSpecs.defau
             question <- nextQuestion(deckState)
           } yield question
 
-        def next(check: Check): Task[Question] =
-          for {
-            _ <- deckStateRef.update(_.updateWith(check).newState)
-            question <- next
-          } yield question
+        def update(check: Check): Task[Unit] =
+          deckStateRef.update(_.updateWith(check).newState).unit
 
         def status: Task[RepetitionStatus] =
           for {
             now <- UIO(Instant.now(clock))
             deckState <- deckStateRef.update(_.recalculateAt(now).newState)
-          } yield {
-            val cardsLeft = deckState.cards.count(_._2._1.shouldBeTested)
-            refineV[Positive](cardsLeft) match {
-              case Right(cardsLeft) => RepetitionStatus.CardsLeft(cardsLeft)
-              case Left(_) => ShouldStop
+            status = {
+              val cardsLeft = deckState.cards.count(_._2._1.shouldBeTested)
+              refineV[Positive](cardsLeft) match {
+                case Right(cardsLeft) => RepetitionStatus.CardsLeft(cardsLeft)
+                case Left(_) => ShouldStop
+              }
             }
-          }
+          } yield status
 
         def getDeckState: UIO[DeckState] = deckStateRef.get
       }
@@ -79,7 +89,7 @@ class LeitnerRepetitionScheme(boxSpecs: NonEmptyVector[BoxSpec] = BoxSpecs.defau
         } yield card
     }.flatMap {
       case Some(card) => UIO.succeed(card)
-      case None => Task.fail(new IllegalStateException("Could not select a card"))
+      case None => Task.die(new IllegalStateException("Could not select a card"))
     }
 
     for {

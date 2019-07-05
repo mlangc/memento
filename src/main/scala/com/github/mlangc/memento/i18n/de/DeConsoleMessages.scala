@@ -18,8 +18,8 @@ class DeConsoleMessages extends ConsoleMessages {
     s"Zuletzt gefragt: $tsStr"
   }
 
-  def help(quitCommand: String, hintCommand: String) =
-    s"Verwenden Sie $quitCommand zum Aussteigen oder $hintCommand für einen Hinweis"
+  def help(quitCommand: String, hintCommand: String, reloadCmd: String) =
+    s"Verwenden Sie $quitCommand zum Aussteigen, $hintCommand für einen Hinweis oder $reloadCmd zum neu Laden"
 
   def correctAnswerWithScore(percentageRevealed: Int, score: Score): String =
     s"$score: You gave the right answer, but only after $percentageRevealed% have been revealed"
@@ -33,4 +33,6 @@ class DeConsoleMessages extends ConsoleMessages {
   def allDoneContinueAnyway = "All done, do you want to continue anyway?"
   def promptYesNoDefaultingToNo = "yN >"
   def isYes(s: String): Boolean = s.toLowerCase == "y"
+
+  def reloading = "Neu laden..."
 }

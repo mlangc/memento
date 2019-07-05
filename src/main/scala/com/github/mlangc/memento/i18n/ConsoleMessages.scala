@@ -12,7 +12,7 @@ trait ConsoleMessages {
   def timesAskedBefore(n: Int Refined NonNegative): String
   def lastAsked(instant: Option[Instant]): String
   def hint(hintStr: String): String
-  def help(quitCmd: String, hintCmd: String): String
+  def help(quitCmd: String, hintCmd: String, reloadCmd: String): String
 
   def correctAnswerWithScore(percentRevealed: Int, score: Score): String
   def wrongAnswerWithScoreRevealed(expected: String, got: String, diff: String, percentageRevealed: Int, score: Score): String
@@ -21,4 +21,5 @@ trait ConsoleMessages {
   def allDoneContinueAnyway: String
   def promptYesNoDefaultingToNo: String
   def isYes(s: String): Boolean
+  def reloading: String
 }

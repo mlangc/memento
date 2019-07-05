@@ -16,6 +16,7 @@ import com.github.mlangc.memento.i18n.ConsoleMessages
 import com.github.mlangc.memento.i18n.Messages
 import com.github.mlangc.memento.i18n.MotivatorMessages
 import com.github.mlangc.memento.trainer.VocabularyTrainer
+import com.github.mlangc.memento.trainer.console.ConsoleTrainer.Reload
 import com.github.mlangc.memento.trainer.examiner.DefaultExaminer
 import com.github.mlangc.memento.trainer.examiner.Exam
 import com.github.mlangc.memento.trainer.examiner.Examiner
@@ -40,7 +41,8 @@ import scala.io.StdIn
 
 class ConsoleTrainer private(consoleMessages: ConsoleMessages,
                              motivatorMessages: MotivatorMessages,
-                             stopMessageDismissedRef: Ref[Boolean])
+                             stopMessageDismissedRef: Ref[Boolean],
+                             reloadingRef: Ref[Boolean])
   extends VocabularyTrainer with LoggingSupport {
 
   private val reader = LineReaderBuilder.builder().build()
@@ -48,25 +50,32 @@ class ConsoleTrainer private(consoleMessages: ConsoleMessages,
   private val QuitCmd = ":q"
   private val HintCmd = ":?"
   private val HintCmdObsolete = "?"
+  private val ReloadCmd = ":r"
 
   def train(db: VocabularyDb, examiner: Examiner): Task[Unit] =
     examiner.prepareExam(db).use {
       case None => Task(println(consoleMessages.noDataToTrainOn))
-      case Some(exam) => clearScreen *> runExam(exam)
+      case Some(exam) => clearScreen *> runExam(db, examiner, exam)
     }
 
-  private def runExam(exam: Exam): Task[Unit] = {
+  private def runExam(db: VocabularyDb, examiner: Examiner, exam: Exam): Task[Unit] = {
     def continueExam: Task[Unit] =
       exam.nextQuestion(doAsk(exam)).flatMap {
-        case (question, Some(feedback)) => printFeedback(question, feedback) *> eventuallyWaitForEnter(feedback) *> clearScreen *> runExam(exam)
-        case (_, None) => Task.unit
+        case (question, Some(feedback)) =>
+          printFeedback(question, feedback) *> eventuallyWaitForEnter(feedback) *> clearScreen *> runExam(db, examiner, exam)
+        case (_, None) =>
+          for {
+            reloading <- reloadingRef.get
+            _ <- if (reloading) reloadingRef.set(false) *> printReloadingMsg *> train(db, examiner) else Task.unit
+          } yield ()
       }
 
     def continue: Task[Boolean] =
       for {
+        reloading <- reloadingRef.get
         shouldStop <- exam.shouldStop
         dismissed <- stopMessageDismissedRef.get
-      } yield !shouldStop || dismissed
+      } yield reloading || !shouldStop || dismissed
 
     def askIfContinue: Task[Boolean] =
       Task {
@@ -110,6 +119,12 @@ class ConsoleTrainer private(consoleMessages: ConsoleMessages,
     }
   }
 
+  private def printReloadingMsg: Task[Unit] = Task {
+    println()
+    println(consoleMessages.reloading)
+    println()
+  }
+
   private def renderFeedback(question: Question, correction: Correction): String = {
     def diffGen: DiffRowGenerator = DiffRowGenerator
       .create()
@@ -141,7 +156,10 @@ class ConsoleTrainer private(consoleMessages: ConsoleMessages,
     for {
       prompt <- printQuestion(question, exam.language1, exam.language2)
       input <- readInput(prompt)
-      answer = parseInput(input)
+      answer <- parseInput(input) match {
+        case Right(answer) => Task.succeed(answer)
+        case Left(Reload) => reloadingRef.set(true).map(_ => None)
+      }
     } yield answer
 
   private def printQuestion(question: Question, lang1: LanguageName, lang2: LanguageName): Task[String] = Task {
@@ -150,7 +168,7 @@ class ConsoleTrainer private(consoleMessages: ConsoleMessages,
       case _ => (question.translation.right, lang2)
     }
 
-    println(consoleMessages.help(QuitCmd, HintCmd))
+    println(consoleMessages.help(QuitCmd, HintCmd, ReloadCmd))
     println()
     println(consoleMessages.timesAskedBefore(question.timesAskedBefore))
     println(consoleMessages.lastAsked(question.lastAsked))
@@ -177,15 +195,18 @@ class ConsoleTrainer private(consoleMessages: ConsoleMessages,
     println(ansi().cursor(0, 0).eraseScreen())
   }
 
-  private def parseInput(input: String): Option[Answer] = input.trim match {
-    case QuitCmd => None
-    case HintCmd | HintCmdObsolete => Some(Answer.NeedHint)
-    case "" => Some(Answer.Blank)
-    case _ => Some(Answer.Text(input))
+  private def parseInput(input: String): Either[Reload.type, Option[Answer]] = input.trim match {
+    case QuitCmd => Right(None)
+    case ReloadCmd => Left(Reload)
+    case HintCmd | HintCmdObsolete => Right(Some(Answer.NeedHint))
+    case "" => Right(Some(Answer.Blank))
+    case _ => Right(Some(Answer.Text(input)))
   }
 }
 
 object ConsoleTrainer extends App {
+  private case object Reload
+
   def run(args: List[String]): ZIO[Environment, Nothing, Int] = {
     (for {
       sheetId <- GsheetsCfg.sheetId.orDie
@@ -193,7 +214,8 @@ object ConsoleTrainer extends App {
       db <- GsheetsVocabularyDb.make(sheetId, new File(credentialsPath))
       messages <- Messages.forDefaultLocale
       stopMessageDismissedRef <- Ref.make(false)
-      trainer = new ConsoleTrainer(messages.console, messages.motivator, stopMessageDismissedRef)
+      reloadRef <- Ref.make(false)
+      trainer = new ConsoleTrainer(messages.console, messages.motivator, stopMessageDismissedRef, reloadRef)
       _ <- trainer.train(db, new DefaultExaminer(new LeitnerRepetitionScheme))
     } yield 0).orDie
   }

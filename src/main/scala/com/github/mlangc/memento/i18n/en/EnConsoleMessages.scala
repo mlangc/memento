@@ -18,8 +18,8 @@ class EnConsoleMessages extends ConsoleMessages {
     s"Last asked: $tsStr"
   }
 
-  def help(quitCommand: String, hintCommand: String) =
-    s"Enter $quitCommand to quit or $hintCommand to get a hint"
+  def help(quitCommand: String, hintCommand: String, reloadCmd: String) =
+    s"Enter $quitCommand to quit, $hintCommand to get a hint or $reloadCmd to reload"
 
   def correctAnswerWithScore(percentageRevealed: Int, score: Score): String =
     s"$score: You gave the right answer, but only after $percentageRevealed% have been revealed"
@@ -33,4 +33,5 @@ class EnConsoleMessages extends ConsoleMessages {
   def allDoneContinueAnyway = "All done, do you want to continue anyway?"
   def promptYesNoDefaultingToNo = "yN > "
   def isYes(s: String): Boolean = s.toLowerCase == "y"
+  def reloading = "Reloading..."
 }

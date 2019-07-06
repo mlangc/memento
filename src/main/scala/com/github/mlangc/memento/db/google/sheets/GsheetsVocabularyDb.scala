@@ -34,15 +34,6 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: String, sheets: Sheet
         .getOrElse(util.Collections.emptyList())
     }
 
-    val translationsRange = "Translations!A2:B"
-    val translationValues = getRawValues(translationsRange)
-
-    val checksRange = "Checks!A2:E"
-    val checksValues = getRawValues(checksRange)
-
-    val synonyms1Range = "Synonyms1!A2:B"
-    val synonyms2Range = "Synonyms2!A2:B"
-
     def cellToStr(cell: AnyRef): Option[String] = {
       Option(cell).map(_.toString.trim)
     }
@@ -61,6 +52,24 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: String, sheets: Sheet
         }
       }.toList
     }
+
+    val (language1: LanguageName, language2: LanguageName) = {
+      getRawValues("Translations!A1:B1")
+        .asScala.flatMap(_.asScala)
+        .flatMap(cellToStr) match {
+        case Seq(lang1, lang2) => (lang1.taggedWith[LanguageNameTag], lang2.taggedWith[LanguageNameTag])
+        case other => throw new AssertionError(s"Expected two results, but got $other")
+      }
+    }
+
+    val translationsRange = "Translations!A2:B"
+    val translationValues = getRawValues(translationsRange)
+
+    val checksRange = "Checks!A2:E"
+    val checksValues = getRawValues(checksRange)
+
+    val synonyms1Range = s"'Synonyms $language1'!A2:B"
+    val synonyms2Range = s"'Synonyms $language2'!A2:B"
 
     val translations = translationValues.asScala.flatMap { row =>
       if (row.size() != 2) None else {
@@ -86,16 +95,6 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: String, sheets: Sheet
         } yield Check(Translation(Vocabulary(leftWord), Vocabulary(rightWord)), direction, score, timestamp)
       }
     }
-
-    val (language1: LanguageName, language2: LanguageName) = {
-      getRawValues("Translations!A1:B1")
-        .asScala.flatMap(_.asScala)
-        .flatMap(cellToStr) match {
-          case Seq(lang1, lang2) => (lang1.taggedWith[LanguageNameTag], lang2.taggedWith[LanguageNameTag])
-          case other => throw new AssertionError(s"Expected two results, but got $other")
-      }
-    }
-
 
     VocabularyData(
       language1 = language1,

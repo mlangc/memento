@@ -94,6 +94,7 @@ val cirisVersion = "0.12.1"
 
 libraryDependencies ++= Seq(
   "is.cir" %% "ciris-core",
+  "is.cir" %% "ciris-refined",
 ).map(_ % cirisVersion)
 
 val enumeratumVersion = "1.5.13"

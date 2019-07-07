@@ -1,9 +1,18 @@
 package com.github.mlangc.memento.db.google.sheets
 
-import ciris.ConfigEntry
+import ciris.ConfigErrors
 import ciris.api.Id
+import ciris.refined._
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.collection.NonEmpty
+
+case class GsheetsCfg private(sheetId: String Refined NonEmpty,
+                              credentialsPath: String Refined NonEmpty)
 
 object GsheetsCfg {
-  def sheetId: ConfigEntry[Id, String, String, String] = ciris.env[String]("SHEET_ID")
-  def credentialsPath: ConfigEntry[Id, String, String, String] = ciris.env[String]("GOOGLE_CREDENTIALS_PATH")
+  def load: Either[ConfigErrors, GsheetsCfg] =
+    ciris.loadConfig(
+      ciris.env[String Refined NonEmpty]("SHEET_ID"),
+      ciris.env[String Refined NonEmpty]("GOOGLE_CREDENTIALS_PATH")
+    )(GsheetsCfg(_, _)).result
 }

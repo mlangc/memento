@@ -3,14 +3,21 @@ package com.github.mlangc.memento.trainer.repetition.leitner
 import java.io.File
 import java.time.Instant
 
-import cats.data.{NonEmptyList, NonEmptyVector}
-import com.github.mlangc.memento.db.google.sheets.{GsheetsCfg, GsheetsVocabularyDb}
+import cats.data.NonEmptyList
+import cats.data.NonEmptyVector
+import com.github.mlangc.memento.db.google.sheets.GsheetsCfg
+import com.github.mlangc.memento.db.google.sheets.GsheetsVocabularyDb
 import com.github.mlangc.memento.db.model.Direction
-import com.github.mlangc.memento.db.model.Direction.{LeftToRight, RightToLeft}
-import com.github.mlangc.memento.trainer.model.{Card, TrainingData}
-import com.github.mlangc.memento.util.convenience.syntax.ciris._
+import com.github.mlangc.memento.db.model.Direction.LeftToRight
+import com.github.mlangc.memento.db.model.Direction.RightToLeft
+import com.github.mlangc.memento.trainer.model.Card
+import com.github.mlangc.memento.trainer.model.TrainingData
+import eu.timepit.refined.auto._
 import zio.console.Console
-import zio.{App, UIO, ZIO, console}
+import zio.App
+import zio.UIO
+import zio.ZIO
+import zio.console
 
 
 object PrintBoxStats extends App {
@@ -18,9 +25,8 @@ object PrintBoxStats extends App {
 
   override def run(args: List[String]): ZIO[PrintBoxStats.Environment, Nothing, Int] = {
     for {
-      sheetId <- GsheetsCfg.sheetId.orDie
-      credPath <- GsheetsCfg.credentialsPath.orDie
-      db <- GsheetsVocabularyDb.make(sheetId, new File(credPath))
+      config <- ZIO.fromEither(GsheetsCfg.load).orDieWith(errors => new IllegalArgumentException("" + errors))
+      db <- GsheetsVocabularyDb.make(config.sheetId, new File(config.credentialsPath))
       trainingData <- db.load.map(TrainingData.convert)
       now <- UIO(Instant.now())
       maybeDeckState = NonEmptyVector.fromVector(trainingData.translations).map { translations =>

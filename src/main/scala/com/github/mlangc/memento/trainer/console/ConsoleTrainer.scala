@@ -5,6 +5,7 @@ import java.util.Collections
 
 import cats.instances.string._
 import cats.syntax.eq._
+import ciris.ConfigErrors
 import com.github.difflib.text.DiffRowGenerator
 import com.github.mlangc.memento.db.VocabularyDb
 import com.github.mlangc.memento.db.google.sheets.GsheetsCfg
@@ -25,8 +26,8 @@ import com.github.mlangc.memento.trainer.model.Feedback
 import com.github.mlangc.memento.trainer.model.Feedback.Correction
 import com.github.mlangc.memento.trainer.model.Question
 import com.github.mlangc.memento.trainer.repetition.leitner.LeitnerRepetitionScheme
-import com.github.mlangc.memento.util.convenience.syntax.ciris._
 import com.github.mlangc.slf4zio.api.LoggingSupport
+import eu.timepit.refined.auto._
 import org.fusesource.jansi.Ansi.ansi
 import org.fusesource.jansi.AnsiConsole.out.print
 import org.fusesource.jansi.AnsiConsole.out.println
@@ -34,7 +35,10 @@ import org.jline.reader.LineReaderBuilder
 import zio.App
 import zio.Ref
 import zio.Task
+import zio.UIO
 import zio.ZIO
+import zio.console
+import zio.console.Console
 
 import scala.io.StdIn
 
@@ -207,15 +211,30 @@ object ConsoleTrainer extends App {
   private case object Reload
 
   def run(args: List[String]): ZIO[Environment, Nothing, Int] = {
-    (for {
-      sheetId <- GsheetsCfg.sheetId.orDie
-      credentialsPath <- GsheetsCfg.credentialsPath.orDie
-      db <- GsheetsVocabularyDb.make(sheetId, new File(credentialsPath))
+    def tryTraining(sheetsCfg: GsheetsCfg): Task[Int] =
+      for {
+      db <- GsheetsVocabularyDb.make(sheetsCfg.sheetId, new File(sheetsCfg.credentialsPath))
       messages <- Messages.forDefaultLocale
+      trainer <- make(messages.console, messages.motivator)
+      _ <- trainer.train(db, new DefaultExaminer(new LeitnerRepetitionScheme))
+    } yield 0
+
+    def handleConfigErrors(errors: ConfigErrors): ZIO[Console, Nothing, Int] =
+      console.putStrLn("Error loading configuration:") *>
+      ZIO.foreach(errors.toVector) { error =>
+        console.putStrLn("  " + error.message)
+      } *> ZIO.succeed(1)
+
+    GsheetsCfg.load match {
+      case Left(configErrors) => handleConfigErrors(configErrors)
+      case Right(sheetsCfg) => tryTraining(sheetsCfg).orDie
+    }
+  }
+
+  def make(consoleMessages: ConsoleMessages, motivatorMessages: MotivatorMessages): UIO[ConsoleTrainer] =
+    for {
       stopMessageDismissedRef <- Ref.make(false)
       reloadRef <- Ref.make(false)
-      trainer = new ConsoleTrainer(messages.console, messages.motivator, stopMessageDismissedRef, reloadRef)
-      _ <- trainer.train(db, new DefaultExaminer(new LeitnerRepetitionScheme))
-    } yield 0).orDie
-  }
+      trainer = new ConsoleTrainer(consoleMessages, motivatorMessages, stopMessageDismissedRef, reloadRef)
+    } yield trainer
 }

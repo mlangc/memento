@@ -38,8 +38,8 @@ class GsheetsVocabularyDbTest extends GenericVocabularyDbTest {
           assert(data.checks.filter(_.translation == Translation("test", "test")).nonEmpty)
           assert(data.synonyms1.contains(Synonym("dumm", "blöd")))
           assert(data.synonyms2.contains(Synonym("forêt", "bois")))
-          assert(data.language1 === "Deutsch")
-          assert(data.language2 === "Französisch")
+          assert(data.language1.value === "Deutsch")
+          assert(data.language2.value === "Französisch")
         }
       }
     }

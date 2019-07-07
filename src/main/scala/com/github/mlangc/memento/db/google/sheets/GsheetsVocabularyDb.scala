@@ -1,6 +1,8 @@
 package com.github.mlangc.memento.db.google.sheets
 
-import java.io.{File, FileInputStream, InputStreamReader}
+import java.io.File
+import java.io.FileInputStream
+import java.io.InputStreamReader
 import java.time.Instant
 import java.util
 import java.util.Collections
@@ -10,14 +12,14 @@ import com.github.mlangc.memento.db.model._
 import com.github.mlangc.slf4zio.api.LoggingSupport
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp
 import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver
-import com.google.api.client.googleapis.auth.oauth2.{GoogleAuthorizationCodeFlow, GoogleClientSecrets}
+import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow
+import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.client.util.store.FileDataStoreFactory
-import com.google.api.services.sheets.v4.{Sheets, SheetsScopes}
 import com.google.api.services.sheets.v4.model.ValueRange
-import com.softwaremill.tagging.Tagger
-import eu.timepit.refined.auto._
+import com.google.api.services.sheets.v4.Sheets
+import com.google.api.services.sheets.v4.SheetsScopes
 import eu.timepit.refined.refineV
 import zio.Task
 
@@ -57,8 +59,20 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: String, sheets: Sheet
       getRawValues("Translations!A1:B1")
         .asScala.flatMap(_.asScala)
         .flatMap(cellToStr) match {
-        case Seq(lang1, lang2) => (lang1.taggedWith[LanguageNameTag], lang2.taggedWith[LanguageNameTag])
-        case other => throw new AssertionError(s"Expected two results, but got $other")
+        case Seq(lang1, lang2) =>
+          (refineV[LanguageNameRefinement](lang1), refineV[LanguageNameRefinement](lang2)) match {
+            case (Right(lang1), Right(lang2)) => (lang1, lang2)
+
+            case (Left(error), Right(_)) =>
+              throw new IllegalStateException(s"Expected a language name but got '$lang1': $error")
+
+            case (Right(_), Left(error)) =>
+              throw new IllegalStateException(s"Expected a language name but got '$lang2': $error")
+
+            case (Left(error1), Left(error2)) =>
+              throw new IllegalStateException(s"Expected language names, but '$lang1' (error: $error1) and '$lang2' (error: $error2)")
+          }
+        case other => throw new IllegalStateException(s"Expected two results, but got $other")
       }
     }
 

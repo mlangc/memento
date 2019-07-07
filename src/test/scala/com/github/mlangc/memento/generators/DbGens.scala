@@ -62,7 +62,10 @@ class DbGens(val baseGens: BaseGens = new BaseGens()) {
   }
 
   def languageName: Gen[LanguageName] =
-    Gen.alphaStr.asInstanceOf[Gen[LanguageName]]
+    Gen.alphaStr
+      .map(s => refineV[LanguageNameRefinement](s).toOption)
+      .suchThat(_.nonEmpty)
+      .map(_.get)
 
   def vocabularyData: Gen[VocabularyData] =
     for {

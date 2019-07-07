@@ -2,14 +2,12 @@ package com.github.mlangc.memento.db.model
 
 import java.time.Instant
 
-import com.softwaremill.tagging.Tagger
-
 import eu.timepit.refined.auto._
 
 object TestVocabularyData {
   val gerFrEmpty: VocabularyData = VocabularyData(
-    language1 = "Deutsch".taggedWith[LanguageNameTag],
-    language2 = "Französisch".taggedWith[LanguageNameTag],
+    language1 = "Deutsch",
+    language2 = "Französisch",
     translations = Nil,
     synonyms1 = Nil,
     synonyms2 = Nil,

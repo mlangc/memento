@@ -10,6 +10,13 @@ import sbtassembly.AssemblyPlugin.defaultUniversalScript
 assemblyOption in assembly := (assemblyOption in assembly).value.copy(prependShellScript = Some(defaultUniversalScript(shebang = false)))
 assemblyJarName in assembly := s"${name.value}-${version.value}"
 
+assemblyMergeStrategy in assembly := {
+  case PathList(ps @ _*) if ps.last.startsWith("jansi") || ps.last.startsWith("libjansi") => MergeStrategy.first
+  case x =>
+    val oldStrategy = (assemblyMergeStrategy in assembly).value
+    oldStrategy(x)
+}
+
 scalacOptions ++= Seq(
   "-deprecation", // Emit warning and location for usages of deprecated APIs.
   "-encoding", "utf-8", // Specify character encoding used by source files.

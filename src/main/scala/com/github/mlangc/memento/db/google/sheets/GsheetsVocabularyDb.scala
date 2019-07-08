@@ -2,6 +2,7 @@ package com.github.mlangc.memento.db.google.sheets
 
 import java.io.File
 import java.io.FileInputStream
+import java.io.FileNotFoundException
 import java.io.InputStreamReader
 import java.time.Instant
 import java.util
@@ -9,6 +10,7 @@ import java.util.Collections
 
 import com.github.mlangc.memento.db.VocabularyDb
 import com.github.mlangc.memento.db.model._
+import com.github.mlangc.memento.errors.ErrorMessage
 import com.github.mlangc.slf4zio.api.LoggingSupport
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp
 import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver
@@ -170,6 +172,9 @@ object GsheetsVocabularyDb {
     } finally {
       secretsIn.close()
     }
+  }.mapError {
+    case fnf: FileNotFoundException => new ErrorMessage(s"Please verify your configuration:\n  ${fnf.getMessage}", fnf)
+    case e => e
   }
 }
 

@@ -13,6 +13,7 @@ import com.github.mlangc.memento.db.google.sheets.GsheetsVocabularyDb
 import com.github.mlangc.memento.db.model.Direction
 import com.github.mlangc.memento.db.model.LanguageName
 import com.github.mlangc.memento.db.model.Score
+import com.github.mlangc.memento.errors.ErrorMessage
 import com.github.mlangc.memento.i18n.ConsoleMessages
 import com.github.mlangc.memento.i18n.Messages
 import com.github.mlangc.memento.i18n.MotivatorMessages
@@ -213,21 +214,25 @@ object ConsoleTrainer extends App {
   def run(args: List[String]): ZIO[Environment, Nothing, Int] = {
     def tryTraining(sheetsCfg: GsheetsCfg): Task[Int] =
       for {
-      db <- GsheetsVocabularyDb.make(sheetsCfg.sheetId, new File(sheetsCfg.credentialsPath))
-      messages <- Messages.forDefaultLocale
-      trainer <- make(messages.console, messages.motivator)
-      _ <- trainer.train(db, new DefaultExaminer(new LeitnerRepetitionScheme))
-    } yield 0
+        db <- GsheetsVocabularyDb.make(sheetsCfg.sheetId, new File(sheetsCfg.credentialsPath))
+        messages <- Messages.forDefaultLocale
+        trainer <- make(messages.console, messages.motivator)
+        _ <- trainer.train(db, new DefaultExaminer(new LeitnerRepetitionScheme))
+      } yield 0
 
     def handleConfigErrors(errors: ConfigErrors): ZIO[Console, Nothing, Int] =
       console.putStrLn("Error loading configuration:") *>
-      ZIO.foreach(errors.toVector) { error =>
-        console.putStrLn("  " + error.message)
-      } *> ZIO.succeed(1)
+        ZIO.foreach(errors.toVector) { error =>
+          console.putStrLn("  " + error.message)
+        } *> ZIO.succeed(1)
 
     GsheetsCfg.load match {
       case Left(configErrors) => handleConfigErrors(configErrors)
-      case Right(sheetsCfg) => tryTraining(sheetsCfg).orDie
+
+      case Right(sheetsCfg) => tryTraining(sheetsCfg).catchSome {
+        case errorMessage: ErrorMessage =>
+          console.putStrLn(errorMessage.getMessage) *> ZIO.succeed(1)
+      }.orDie
     }
   }
 

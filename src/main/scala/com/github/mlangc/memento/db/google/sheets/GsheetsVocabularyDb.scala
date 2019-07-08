@@ -17,6 +17,7 @@ import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow
 import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
+import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.client.util.store.FileDataStoreFactory
 import com.google.api.services.sheets.v4.model.ValueRange
@@ -119,6 +120,11 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: String, sheets: Sheet
       checks = checks.toList,
       synonyms1 = getSynonymValues(synonyms1Range),
       synonyms2 = getSynonymValues(synonyms2Range))
+  }.mapError {
+    case gre: GoogleJsonResponseException =>
+      new ErrorMessage(s"Error loading Google Sheet: ${gre.getStatusCode} - ${gre.getStatusMessage}\nPlease check your configuration!")
+
+    case e => e
   }
 
   def addCheck(check: Check): Task[Unit] = Task {
@@ -173,7 +179,9 @@ object GsheetsVocabularyDb {
       secretsIn.close()
     }
   }.mapError {
-    case fnf: FileNotFoundException => new ErrorMessage(s"Please verify your configuration:\n  ${fnf.getMessage}", fnf)
+    case fnf: FileNotFoundException =>
+      new ErrorMessage(s"Please verify your configuration:\n  ${fnf.getMessage}", fnf)
+
     case e => e
   }
 }

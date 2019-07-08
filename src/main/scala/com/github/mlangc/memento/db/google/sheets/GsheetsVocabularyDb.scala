@@ -35,8 +35,21 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: String, sheets: Sheet
     val sheetValues = sheets.spreadsheets().values()
 
     def getRawValues(range: String): util.List[util.List[AnyRef]] = logDebugPerformance(d => s"grabbing values took ${d.toMillis}ms", 20.millis) {
-      Option(sheetValues.get(sheetId, range).execute().getValues)
-        .getOrElse(util.Collections.emptyList())
+      try {
+        Option(sheetValues.get(sheetId, range).execute().getValues)
+          .getOrElse(util.Collections.emptyList())
+      } catch {
+        case gre: GoogleJsonResponseException =>
+          val checkMsg = {
+            if (gre.getDetails.getCode == 404) "Please check your configuration"
+            else "Please verify that your sheet is properly structured"
+          }
+
+          val errTitle = s"Error loading range \"$range\" from sheet $sheetId"
+          val errMsg = s"${gre.getStatusCode} - ${gre.getStatusMessage}"
+
+          throw new ErrorMessage(s"$errTitle\n$errMsg\n$checkMsg", gre)
+      }
     }
 
     def cellToStr(cell: AnyRef): Option[String] = {
@@ -120,11 +133,6 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: String, sheets: Sheet
       checks = checks.toList,
       synonyms1 = getSynonymValues(synonyms1Range),
       synonyms2 = getSynonymValues(synonyms2Range))
-  }.mapError {
-    case gre: GoogleJsonResponseException =>
-      new ErrorMessage(s"Error loading Google Sheet: ${gre.getStatusCode} - ${gre.getStatusMessage}\nPlease check your configuration!")
-
-    case e => e
   }
 
   def addCheck(check: Check): Task[Unit] = Task {

@@ -1,6 +1,9 @@
 package com.github.mlangc.memento.trainer.console
 
 import java.io.File
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import java.util.Collections
 
 import cats.instances.string._
@@ -172,10 +175,14 @@ class ConsoleTrainer private(consoleMessages: ConsoleMessages,
       case _ => (question.translation.right, lang2)
     }
 
+    val lastAsked: Option[LocalDateTime] = question.lastAsked.map { instant =>
+      instant.atZone(ZoneId.systemDefault()).toLocalDateTime.truncatedTo(ChronoUnit.SECONDS)
+    }
+
     println(consoleMessages.help(QuitCmd, HintCmd, ReloadCmd))
     println()
     println(consoleMessages.timesAskedBefore(question.timesAskedBefore))
-    println(consoleMessages.lastAsked(question.lastAsked))
+    println(consoleMessages.lastAsked(lastAsked))
 
     println()
     question.motivators.foreach { motivator =>

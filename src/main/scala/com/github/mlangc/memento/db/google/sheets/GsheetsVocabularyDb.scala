@@ -45,7 +45,7 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: String, sheets: Sheet
             else "Please verify that your sheet is properly structured"
           }
 
-          val errTitle = s"Error loading range \"$range\" from sheet $sheetId"
+          val errTitle = s"""Error loading range "$range" from sheet $sheetId"""
           val errMsg = s"${gre.getStatusCode} - ${gre.getStatusMessage}"
 
           throw new ErrorMessage(s"$errTitle\n$errMsg\n$checkMsg", gre)

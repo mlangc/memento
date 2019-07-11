@@ -1,6 +1,6 @@
 package com.github.mlangc.memento.i18n.de
 
-import java.time.Instant
+import java.time.LocalDateTime
 
 import com.github.mlangc.memento.db.model.Score
 import com.github.mlangc.memento.i18n.ConsoleMessages
@@ -13,7 +13,7 @@ class DeConsoleMessages extends ConsoleMessages {
   def timesAskedBefore(n: Refined[Int, NonNegative]) = s"Bereits abgefragt: ${n.value} mal"
   def hint(hintStr: String) = s"Hinweis: $hintStr"
 
-  def lastAsked(instant: Option[Instant]): String = {
+  def lastAsked(instant: Option[LocalDateTime]): String = {
     val tsStr = instant.map(_.toString).getOrElse("nie")
     s"Zuletzt gefragt: $tsStr"
   }

@@ -133,7 +133,7 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: String, sheets: Sheet
       checks = checks.toList,
       synonyms1 = getSynonymValues(synonyms1Range),
       synonyms2 = getSynonymValues(synonyms2Range))
-  }
+  }.logDebugPerformance(d => s"Loading sheet took ${d.toMillis}ms", 100.millis)
 
   def addCheck(check: Check): Task[Unit] = Task {
     val valueRange = new ValueRange

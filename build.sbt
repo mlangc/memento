@@ -70,6 +70,7 @@ val catsVersion = "1.6.1"
 val zioVersion = "1.0.0-RC8-12"
 val refinedVersion = "0.9.8"
 val silencerVersion = "1.4.1"
+val log4jVersion = "2.12.0"
 
 libraryDependencies += "dev.zio" %% "zio-interop-cats" % zioVersion
 
@@ -111,7 +112,10 @@ libraryDependencies += "org.fusesource.jansi" % "jansi" % "1.18"
 libraryDependencies += "org.fusesource.jansi" % "jansi" % "1.18"
 libraryDependencies += "org.jline" % "jline-reader" % "3.11.0"
 
-libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.2.3"
+libraryDependencies += "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4jVersion
+libraryDependencies += "org.apache.logging.log4j" % "log4j-api" % log4jVersion
+libraryDependencies += "org.apache.logging.log4j" % "log4j-core" % log4jVersion
+
 libraryDependencies += "io.github.java-diff-utils" % "java-diff-utils" % "4.0"
 
 libraryDependencies ++= Seq(

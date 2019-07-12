@@ -20,9 +20,9 @@ import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.client.util.store.FileDataStoreFactory
-import com.google.api.services.sheets.v4.model.ValueRange
 import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.SheetsScopes
+import com.google.api.services.sheets.v4.model.ValueRange
 import eu.timepit.refined.refineV
 import zio.Task
 
@@ -31,108 +31,128 @@ import scala.concurrent.duration._
 import scala.util.Try
 
 private[sheets] class GsheetsVocabularyDb private(sheetId: String, sheets: Sheets) extends VocabularyDb with LoggingSupport {
-  def load: Task[VocabularyData] = Task {
-    val sheetValues = sheets.spreadsheets().values()
+  def load: Task[VocabularyData] = {
+    for {
+      sheetValues <- Task(sheets.spreadsheets().values())
+      data <- {
+        def getRawValues(range: String): Task[Iterable[util.List[AnyRef]]] = Task {
+          try {
+            Option(sheetValues.get(sheetId, range).execute().getValues.asScala)
+              .getOrElse(Iterable.empty)
+          } catch {
+            case gre: GoogleJsonResponseException =>
+              val checkMsg = {
+                if (gre.getDetails.getCode == 404) "Please check your configuration"
+                else "Please verify that your sheet is properly structured"
+              }
 
-    def getRawValues(range: String): Iterable[util.List[AnyRef]] = logDebugPerformance(d => s"grabbing values took ${d.toMillis}ms", 20.millis) {
-      try {
-        Option(sheetValues.get(sheetId, range).execute().getValues.asScala)
-          .getOrElse(Iterable.empty)
-      } catch {
-        case gre: GoogleJsonResponseException =>
-          val checkMsg = {
-            if (gre.getDetails.getCode == 404) "Please check your configuration"
-            else "Please verify that your sheet is properly structured"
+              val errTitle = s"""Error loading range "$range" from sheet $sheetId"""
+              val errMsg = s"${gre.getStatusCode} - ${gre.getStatusMessage}"
+
+              throw new ErrorMessage(s"$errTitle\n$errMsg\n$checkMsg", gre)
           }
+        }.logDebugPerformance(d => s"grabbing values to ${d.toMillis}ms", 20.millis)
 
-          val errTitle = s"""Error loading range "$range" from sheet $sheetId"""
-          val errMsg = s"${gre.getStatusCode} - ${gre.getStatusMessage}"
-
-          throw new ErrorMessage(s"$errTitle\n$errMsg\n$checkMsg", gre)
-      }
-    }
-
-    def cellToStr(cell: AnyRef): Option[String] = {
-      Option(cell).map(_.toString.trim)
-    }
-
-    def cellToSpelling(cell: AnyRef): Option[Spelling] = {
-      cellToStr(cell).flatMap(s => refineV[SpellingRefinement](s).toOption)
-    }
-
-    def getSynonymValues(range: String): List[Synonym] = {
-      getRawValues(range).flatMap { row =>
-        if (row.size() != 2) None else {
-          for {
-            left <- cellToSpelling(row.get(0))
-            right <- cellToSpelling(row.get(1))
-          } yield Synonym(left, right)
+        def cellToStr(cell: AnyRef): Option[String] = {
+          Option(cell).map(_.toString.trim)
         }
-      }.toList
-    }
 
-    val (language1: LanguageName, language2: LanguageName) = {
-      getRawValues("Translations!A1:B1")
-        .flatMap(_.asScala)
-        .flatMap(cellToStr) match {
-        case Seq(lang1, lang2) =>
-          (refineV[LanguageNameRefinement](lang1), refineV[LanguageNameRefinement](lang2)) match {
-            case (Right(lang1), Right(lang2)) => (lang1, lang2)
+        def cellToSpelling(cell: AnyRef): Option[Spelling] = {
+          cellToStr(cell).flatMap(s => refineV[SpellingRefinement](s).toOption)
+        }
 
-            case (Left(error), Right(_)) =>
-              throw new IllegalStateException(s"Expected a language name but got '$lang1': $error")
+        def getSynonymValues(range: String): Task[List[Synonym]] = getRawValues(range).map { rawValues =>
+          rawValues.flatMap { row =>
+            if (row.size() != 2) None else {
+              for {
+                left <- cellToSpelling(row.get(0))
+                right <- cellToSpelling(row.get(1))
+              } yield Synonym(left, right)
+            }
+          }.toList
+        }
 
-            case (Right(_), Left(error)) =>
-              throw new IllegalStateException(s"Expected a language name but got '$lang2': $error")
+        val langNames: Task[(LanguageName, LanguageName)] = {
+          getRawValues("Translations!A1:B1").map { rawValues =>
+            rawValues.flatMap(_.asScala)
+              .flatMap(cellToStr) match {
+              case Seq(lang1, lang2) =>
+                (refineV[LanguageNameRefinement](lang1), refineV[LanguageNameRefinement](lang2)) match {
+                  case (Right(lang1), Right(lang2)) => (lang1, lang2)
 
-            case (Left(error1), Left(error2)) =>
-              throw new IllegalStateException(s"Expected language names, but '$lang1' (error: $error1) and '$lang2' (error: $error2)")
+                  case (Left(error), Right(_)) =>
+                    throw new IllegalStateException(s"Expected a language name but got '$lang1': $error")
+
+                  case (Right(_), Left(error)) =>
+                    throw new IllegalStateException(s"Expected a language name but got '$lang2': $error")
+
+                  case (Left(error1), Left(error2)) =>
+                    throw new IllegalStateException(s"Expected language names, but '$lang1' (error: $error1) and '$lang2' (error: $error2)")
+                }
+              case other => throw new IllegalStateException(s"Expected two results, but got $other")
+            }
           }
-        case other => throw new IllegalStateException(s"Expected two results, but got $other")
-      }
-    }
+        }
 
-    val translationsRange = "Translations!A2:B"
-    val translationValues = getRawValues(translationsRange)
+        val translationsRange = "Translations!A2:B"
+        val translationValues = getRawValues(translationsRange)
 
-    val checksRange = "Checks!A2:E"
-    val checksValues = getRawValues(checksRange)
+        val checksRange = "Checks!A2:E"
+        val checksValues = getRawValues(checksRange)
 
-    val synonyms1Range = s"'Synonyms $language1'!A2:B"
-    val synonyms2Range = s"'Synonyms $language2'!A2:B"
+        val synonmRanges: Task[(String, String)] = langNames.map { case (language1, language2) =>
+          val synonyms1Range = s"'Synonyms $language1'!A2:B"
+          val synonyms2Range = s"'Synonyms $language2'!A2:B"
+          (synonyms1Range, synonyms2Range)
+        }
 
-    val translations = translationValues.flatMap { row =>
-      if (row.size() != 2) None else {
+        val translations: Task[Iterable[Translation]] = translationValues.map { translationValues =>
+          translationValues.flatMap { row =>
+            if (row.size() != 2) None else {
+              for {
+                left <- cellToSpelling(row.get(0))
+                right <- cellToSpelling(row.get(1))
+              } yield Translation(left, right)
+            }
+          }
+        }
+
+        def toInstant(str: String): Option[Instant] = {
+          Try(Instant.parse(str)).toOption
+        }
+
+        val checks: Task[Iterable[Check]] = checksValues.map { checksValues =>
+          checksValues.flatMap { row =>
+            if (row.size() != 5) None else {
+              for {
+                leftWord <- cellToSpelling(row.get(0))
+                rightWord <- cellToSpelling(row.get(1))
+                timestamp <- cellToStr(row.get(4)).flatMap(toInstant)
+                score <- cellToStr(row.get(3)).flatMap(Score.parse)
+                direction <- cellToStr(row.get(2)).flatMap(Direction.fromString)
+              } yield Check(Translation(Vocabulary(leftWord), Vocabulary(rightWord)), direction, score, timestamp)
+            }
+          }
+        }
+
         for {
-          left <- cellToSpelling(row.get(0))
-          right <- cellToSpelling(row.get(1))
-        } yield Translation(left, right)
+          languages <- langNames
+          translations <- translations
+          checks <- checks
+          synRanges <- synonmRanges
+          synonyms1 <- getSynonymValues(synRanges._1)
+          synonyms2 <- getSynonymValues(synRanges._2)
+        } yield {
+          VocabularyData(
+            language1 = languages._1,
+            language2 = languages._2,
+            translations = translations.toList,
+            checks = checks.toList,
+            synonyms1 = synonyms1,
+            synonyms2 = synonyms2)
+        }
       }
-    }
-
-    def toInstant(str: String): Option[Instant] = {
-      Try(Instant.parse(str)).toOption
-    }
-
-    val checks = checksValues.flatMap { row =>
-      if (row.size() != 5) None else {
-        for {
-          leftWord <- cellToSpelling(row.get(0))
-          rightWord <- cellToSpelling(row.get(1))
-          timestamp <- cellToStr(row.get(4)).flatMap(toInstant)
-          score <- cellToStr(row.get(3)).flatMap(Score.parse)
-          direction <- cellToStr(row.get(2)).flatMap(Direction.fromString)
-        } yield Check(Translation(Vocabulary(leftWord), Vocabulary(rightWord)), direction, score, timestamp)
-      }
-    }
-
-    VocabularyData(
-      language1 = language1,
-      language2 = language2,
-      translations = translations.toList,
-      checks = checks.toList,
-      synonyms1 = getSynonymValues(synonyms1Range),
-      synonyms2 = getSynonymValues(synonyms2Range))
+    } yield data
   }.logDebugPerformance(d => s"Loading sheet took ${d.toMillis}ms", 100.millis)
 
   def addCheck(check: Check): Task[Unit] = Task {

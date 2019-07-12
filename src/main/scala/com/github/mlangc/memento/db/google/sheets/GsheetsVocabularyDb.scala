@@ -51,7 +51,7 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: String, sheets: Sheet
 
               throw new ErrorMessage(s"$errTitle\n$errMsg\n$checkMsg", gre)
           }
-        }.logDebugPerformance(d => s"grabbing values to ${d.toMillis}ms", 20.millis)
+        }.logDebugPerformance(d => s"grabbing values for '$range' took ${d.toMillis}ms", 20.millis)
 
         def cellToStr(cell: AnyRef): Option[String] = {
           Option(cell).map(_.toString.trim)

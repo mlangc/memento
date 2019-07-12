@@ -34,10 +34,10 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: String, sheets: Sheet
   def load: Task[VocabularyData] = Task {
     val sheetValues = sheets.spreadsheets().values()
 
-    def getRawValues(range: String): util.List[util.List[AnyRef]] = logDebugPerformance(d => s"grabbing values took ${d.toMillis}ms", 20.millis) {
+    def getRawValues(range: String): Iterable[util.List[AnyRef]] = logDebugPerformance(d => s"grabbing values took ${d.toMillis}ms", 20.millis) {
       try {
-        Option(sheetValues.get(sheetId, range).execute().getValues)
-          .getOrElse(util.Collections.emptyList())
+        Option(sheetValues.get(sheetId, range).execute().getValues.asScala)
+          .getOrElse(Iterable.empty)
       } catch {
         case gre: GoogleJsonResponseException =>
           val checkMsg = {
@@ -61,7 +61,7 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: String, sheets: Sheet
     }
 
     def getSynonymValues(range: String): List[Synonym] = {
-      getRawValues(range).asScala.flatMap { row =>
+      getRawValues(range).flatMap { row =>
         if (row.size() != 2) None else {
           for {
             left <- cellToSpelling(row.get(0))
@@ -73,7 +73,7 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: String, sheets: Sheet
 
     val (language1: LanguageName, language2: LanguageName) = {
       getRawValues("Translations!A1:B1")
-        .asScala.flatMap(_.asScala)
+        .flatMap(_.asScala)
         .flatMap(cellToStr) match {
         case Seq(lang1, lang2) =>
           (refineV[LanguageNameRefinement](lang1), refineV[LanguageNameRefinement](lang2)) match {
@@ -101,7 +101,7 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: String, sheets: Sheet
     val synonyms1Range = s"'Synonyms $language1'!A2:B"
     val synonyms2Range = s"'Synonyms $language2'!A2:B"
 
-    val translations = translationValues.asScala.flatMap { row =>
+    val translations = translationValues.flatMap { row =>
       if (row.size() != 2) None else {
         for {
           left <- cellToSpelling(row.get(0))
@@ -114,7 +114,7 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: String, sheets: Sheet
       Try(Instant.parse(str)).toOption
     }
 
-    val checks = checksValues.asScala.flatMap { row =>
+    val checks = checksValues.flatMap { row =>
       if (row.size() != 5) None else {
         for {
           leftWord <- cellToSpelling(row.get(0))

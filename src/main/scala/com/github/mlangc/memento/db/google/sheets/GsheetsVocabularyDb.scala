@@ -25,17 +25,22 @@ import com.google.api.services.sheets.v4.SheetsScopes
 import com.google.api.services.sheets.v4.model.ValueRange
 import eu.timepit.refined.refineV
 import zio.Task
+import zio.TaskR
+import zio.ZIO
+import zio.blocking.Blocking
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.util.Try
 
-private[sheets] class GsheetsVocabularyDb private(sheetId: String, sheets: Sheets) extends VocabularyDb with LoggingSupport {
+private[sheets] class GsheetsVocabularyDb private(sheetId: String, sheets: Sheets, blockingModule: Blocking) extends VocabularyDb with LoggingSupport {
+  import blockingModule.blocking.effectBlocking
+
   def load: Task[VocabularyData] = {
     for {
       sheetValues <- Task(sheets.spreadsheets().values())
       data <- {
-        def getRawValues(range: String): Task[Iterable[util.List[AnyRef]]] = Task {
+        def getRawValues(range: String): Task[Iterable[util.List[AnyRef]]] = effectBlocking {
           try {
             Option(sheetValues.get(sheetId, range).execute().getValues.asScala)
               .getOrElse(Iterable.empty)
@@ -100,10 +105,11 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: String, sheets: Sheet
         val checksRange = "Checks!A2:E"
         val checksValues = getRawValues(checksRange)
 
-        val synonmRanges: Task[(String, String)] = langNames.map { case (language1, language2) =>
-          val synonyms1Range = s"'Synonyms $language1'!A2:B"
-          val synonyms2Range = s"'Synonyms $language2'!A2:B"
-          (synonyms1Range, synonyms2Range)
+        def synonmRanges(langNames: (LanguageName, LanguageName)): (String, String) = langNames match {
+          case (language1, language2) =>
+            val synonyms1Range = s"'Synonyms $language1'!A2:B"
+            val synonyms2Range = s"'Synonyms $language2'!A2:B"
+            (synonyms1Range, synonyms2Range)
         }
 
         val translations: Task[Iterable[Translation]] = translationValues.map { translationValues =>
@@ -136,16 +142,16 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: String, sheets: Sheet
         }
 
         for {
-          languages <- langNames
+          langNames <- langNames
           translations <- translations
           checks <- checks
-          synRanges <- synonmRanges
+          synRanges = synonmRanges(langNames)
           synonyms1 <- getSynonymValues(synRanges._1)
           synonyms2 <- getSynonymValues(synRanges._2)
         } yield {
           VocabularyData(
-            language1 = languages._1,
-            language2 = languages._2,
+            language1 = langNames._1,
+            language2 = langNames._2,
             translations = translations.toList,
             checks = checks.toList,
             synonyms1 = synonyms1,
@@ -155,7 +161,7 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: String, sheets: Sheet
     } yield data
   }.logDebugPerformance(d => s"Loading sheet took ${d.toMillis}ms", 100.millis)
 
-  def addCheck(check: Check): Task[Unit] = Task {
+  def addCheck(check: Check): Task[Unit] = effectBlocking {
     val valueRange = new ValueRange
     valueRange.setMajorDimension("ROWS")
 
@@ -184,33 +190,34 @@ object GsheetsVocabularyDb {
   private lazy val transport = GoogleNetHttpTransport.newTrustedTransport()
   private lazy val jsonFactory = JacksonFactory.getDefaultInstance
 
-  def make(sheetId: String, secrets: File): Task[GsheetsVocabularyDb] = Task {
-    val secretsIn = new FileInputStream(secrets)
-    try {
-      val clientSecrets = GoogleClientSecrets.load(jsonFactory, new InputStreamReader(secretsIn))
-      val scopes = Collections.singletonList(SheetsScopes.SPREADSHEETS)
+  def make(sheetId: String, secrets: File): TaskR[Blocking, GsheetsVocabularyDb] = ZIO.accessM[Blocking] { blockingModule =>
+    blockingModule.blocking.effectBlocking {
+      val secretsIn = new FileInputStream(secrets)
+      try {
+        val clientSecrets = GoogleClientSecrets.load(jsonFactory, new InputStreamReader(secretsIn))
+        val scopes = Collections.singletonList(SheetsScopes.SPREADSHEETS)
 
-      val flow = new GoogleAuthorizationCodeFlow.Builder(transport, jsonFactory, clientSecrets, scopes)
-        .setDataStoreFactory(new FileDataStoreFactory(new File("tokens")))
-        .setAccessType("offline")
-        .build()
+        val flow = new GoogleAuthorizationCodeFlow.Builder(transport, jsonFactory, clientSecrets, scopes)
+          .setDataStoreFactory(new FileDataStoreFactory(new File("tokens")))
+          .setAccessType("offline")
+          .build()
 
-      val receiver = new LocalServerReceiver.Builder().setPort(8888).build()
-      val credentials = new AuthorizationCodeInstalledApp(flow, receiver).authorize("user")
-      val service = new Sheets.Builder(transport, jsonFactory, credentials)
-        .setApplicationName("memento")
-        .build()
+        val receiver = new LocalServerReceiver.Builder().setPort(8888).build()
+        val credentials = new AuthorizationCodeInstalledApp(flow, receiver).authorize("user")
+        val service = new Sheets.Builder(transport, jsonFactory, credentials)
+          .setApplicationName("memento")
+          .build()
 
-      new GsheetsVocabularyDb(sheetId, service)
+        new GsheetsVocabularyDb(sheetId, service, blockingModule)
+      } finally {
+        secretsIn.close()
+      }
+    }.mapError {
+      case fnf: FileNotFoundException =>
+        new ErrorMessage(s"Please verify your configuration:\n  ${fnf.getMessage}", fnf)
 
-    } finally {
-      secretsIn.close()
+      case e => e
     }
-  }.mapError {
-    case fnf: FileNotFoundException =>
-      new ErrorMessage(s"Please verify your configuration:\n  ${fnf.getMessage}", fnf)
-
-    case e => e
   }
 }
 

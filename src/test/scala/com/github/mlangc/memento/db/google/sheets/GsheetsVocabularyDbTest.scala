@@ -9,8 +9,8 @@ import com.github.mlangc.memento.db.model.Translation
 import zio.Managed
 import zio.Task
 import eu.timepit.refined.auto._
-
 import com.github.ghik.silencer.silent
+import zio.blocking.Blocking
 
 @silent("`Any`")
 class GsheetsVocabularyDbTest extends GenericVocabularyDbTest {
@@ -25,7 +25,7 @@ class GsheetsVocabularyDbTest extends GenericVocabularyDbTest {
       Task {
         assume(sheetId.nonEmpty, s"Please set $testSheetIdVar")
         assume(credentialsPath.nonEmpty, s"Please set $credentialsPathVar")
-      } *> GsheetsVocabularyDb.make(sheetId, new File(credentialsPath))
+      } *> GsheetsVocabularyDb.make(sheetId, new File(credentialsPath)).provide(Blocking.Live)
     }
   }
 

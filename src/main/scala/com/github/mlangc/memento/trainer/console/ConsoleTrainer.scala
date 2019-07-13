@@ -39,8 +39,10 @@ import org.jline.reader.LineReaderBuilder
 import zio.App
 import zio.Ref
 import zio.Task
+import zio.TaskR
 import zio.UIO
 import zio.ZIO
+import zio.blocking.Blocking
 import zio.console
 import zio.console.Console
 
@@ -219,7 +221,7 @@ object ConsoleTrainer extends App {
   private case object Reload
 
   def run(args: List[String]): ZIO[Environment, Nothing, Int] = {
-    def tryTraining(sheetsCfg: GsheetsCfg): Task[Int] =
+    def tryTraining(sheetsCfg: GsheetsCfg): TaskR[Blocking, Int] =
       for {
         db <- GsheetsVocabularyDb.make(sheetsCfg.sheetId, new File(sheetsCfg.credentialsPath))
         messages <- Messages.forDefaultLocale

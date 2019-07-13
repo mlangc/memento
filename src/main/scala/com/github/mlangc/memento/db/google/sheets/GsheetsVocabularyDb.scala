@@ -142,20 +142,17 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: String, sheets: Sheet
         }
 
         for {
-          langNames <- langNames
-          translations <- translations
-          checks <- checks
-          synRanges = synonmRanges(langNames)
-          synonyms1 <- getSynonymValues(synRanges._1)
-          synonyms2 <- getSynonymValues(synRanges._2)
+          langNamesChecksTranslations <- zip3Par(langNames, checks, translations)
+          synRanges = synonmRanges(langNamesChecksTranslations._1)
+          synonyms <- getSynonymValues(synRanges._1).zipPar(getSynonymValues(synRanges._2))
         } yield {
           VocabularyData(
-            language1 = langNames._1,
-            language2 = langNames._2,
-            translations = translations.toList,
-            checks = checks.toList,
-            synonyms1 = synonyms1,
-            synonyms2 = synonyms2)
+            language1 = langNamesChecksTranslations._1._1,
+            language2 = langNamesChecksTranslations._1._2,
+            translations = langNamesChecksTranslations._3.toList,
+            checks = langNamesChecksTranslations._2.toList,
+            synonyms1 = synonyms._1,
+            synonyms2 = synonyms._2)
         }
       }
     } yield data
@@ -184,6 +181,9 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: String, sheets: Sheet
         .execute()
     }
   }.unit
+
+  private def zip3Par[A, B, C](a: Task[A], b: Task[B], c: Task[C]): Task[(A, B, C)] =
+    a.zipPar(b).zipWithPar(c) { case ((a, b), c) => (a, b, c) }
 }
 
 object GsheetsVocabularyDb {

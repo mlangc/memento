@@ -74,8 +74,6 @@ val log4jVersion = "2.12.0"
 
 libraryDependencies += "dev.zio" %% "zio-interop-cats" % zioVersion
 
-libraryDependencies += "com.softwaremill.common" %% "tagging" % "2.2.1"
-
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.8" % Test
 libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.14.0" % Test
 
@@ -105,18 +103,15 @@ libraryDependencies ++= Seq(
 
 libraryDependencies += "com.statemachinesystems" % "mock-clock" % "1.0" % Test
 libraryDependencies += "info.debatty" % "java-string-similarity" % "1.2.1"
+libraryDependencies += "io.github.java-diff-utils" % "java-diff-utils" % "4.0"
 
 libraryDependencies += "com.github.mlangc" %% "slf4zio" % "0.1.0"
-libraryDependencies += "org.fusesource.jansi" % "jansi" % "1.18"
-
 libraryDependencies += "org.fusesource.jansi" % "jansi" % "1.18"
 libraryDependencies += "org.jline" % "jline-reader" % "3.11.0"
 
 libraryDependencies += "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4jVersion
 libraryDependencies += "org.apache.logging.log4j" % "log4j-api" % log4jVersion
 libraryDependencies += "org.apache.logging.log4j" % "log4j-core" % log4jVersion
-
-libraryDependencies += "io.github.java-diff-utils" % "java-diff-utils" % "4.0"
 
 libraryDependencies ++= Seq(
   compilerPlugin("com.github.ghik" %% "silencer-plugin" % silencerVersion),

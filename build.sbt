@@ -67,13 +67,13 @@ scalacOptions ++= Seq(
 scalacOptions in(Compile, console) --= Seq("-Ywarn-unused:imports", "-Xfatal-warnings")
 
 val catsVersion = "1.6.1"
-val zioVersion = "1.0.0-RC8-12"
+val zioVersion = "1.0.0-RC10-1"
 val refinedVersion = "0.9.8"
 val silencerVersion = "1.4.1"
 val log4jVersion = "2.12.0"
 
-libraryDependencies += "dev.zio" %% "zio-interop-cats" % zioVersion
 
+libraryDependencies += "dev.zio" %% "zio-interop-cats" % "1.3.1.0-RC3"
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.8" % Test
 libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.14.0" % Test
 
@@ -105,7 +105,7 @@ libraryDependencies += "com.statemachinesystems" % "mock-clock" % "1.0" % Test
 libraryDependencies += "info.debatty" % "java-string-similarity" % "1.2.1"
 libraryDependencies += "io.github.java-diff-utils" % "java-diff-utils" % "4.0"
 
-libraryDependencies += "com.github.mlangc" %% "slf4zio" % "0.1.0"
+libraryDependencies += "com.github.mlangc" %% "slf4zio" % "0.2.0-SNAPSHOT"
 libraryDependencies += "org.fusesource.jansi" % "jansi" % "1.18"
 libraryDependencies += "org.jline" % "jline-reader" % "3.11.0"
 

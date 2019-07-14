@@ -1,7 +1,7 @@
 package com.github.mlangc.memento
 
 import org.scalactic.source.Position
-import zio.Exit.Cause
+import zio.Cause
 import zio.FiberFailure
 import zio.{DefaultRuntime, ZIO}
 

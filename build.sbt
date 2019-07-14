@@ -12,6 +12,8 @@ assemblyJarName in assembly := s"${name.value}-${version.value}"
 
 assemblyMergeStrategy in assembly := {
   case PathList(ps @ _*) if ps.last.startsWith("jansi") || ps.last.startsWith("libjansi") => MergeStrategy.first
+  case PathList("zio", "BuildInfo$.class") => MergeStrategy.last
+  case PathList("scala", "tools", "nsc", _*) => MergeStrategy.discard
   case x =>
     val oldStrategy = (assemblyMergeStrategy in assembly).value
     oldStrategy(x)
@@ -72,11 +74,9 @@ val refinedVersion = "0.9.8"
 val silencerVersion = "1.4.1"
 val log4jVersion = "2.12.0"
 
-
 libraryDependencies += "dev.zio" %% "zio-interop-cats" % "1.3.1.0-RC3"
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.8" % Test
 libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.14.0" % Test
-
 
 libraryDependencies += "com.google.oauth-client" % "google-oauth-client-jetty" % "1.29.0"
 libraryDependencies += "com.google.apis" % "google-api-services-sheets" % "v4-rev579-1.25.0"

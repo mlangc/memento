@@ -32,7 +32,7 @@ Download Memento, and create a launch script like this:
 
 export SHEET_ID=put-your-sheet-id-here
 export GOOGLE_CREDENTIALS_PATH=put-your-credentials-path-here
-./memento-1.0.0
+./memento-0.1.0
 ```
 
 You can find the sheet ID of your Google Sheet by opening the sheet in your browser and inspecting the URL.

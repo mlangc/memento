@@ -1,8 +1,11 @@
 package com.github.mlangc.memento.trainer.examiner
 
 import java.time.Instant
+import java.util.concurrent.TimeUnit
 
+import cats.instances.option._
 import cats.syntax.option._
+import cats.syntax.traverse._
 import com.github.mlangc.memento.db.VocabularyDb
 import com.github.mlangc.memento.db.model.Check
 import com.github.mlangc.memento.db.model.VocabularyData
@@ -10,14 +13,18 @@ import com.github.mlangc.memento.trainer.examiner.DefaultExaminer.ExamState
 import com.github.mlangc.memento.trainer.model._
 import com.github.mlangc.memento.trainer.repetition.RepetitionScheme
 import com.github.mlangc.slf4zio.api._
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.collection.NonEmpty
 import zio.Managed
 import zio.Queue
 import zio.Ref
+import zio.Schedule
 import zio.Semaphore
 import zio.Task
 import zio.UIO
-import cats.syntax.traverse._
-import cats.instances.option._
+import zio.ZSchedule
+import zio.clock.Clock
+import zio.duration.Duration
 import zio.interop.catz._
 
 object DefaultExaminer {
@@ -32,25 +39,26 @@ class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner with 
     Managed.fromEffect(db.load).flatMap(data => mkExam(db, data))
 
   private def mkExam(db: VocabularyDb, data: VocabularyData): Managed[Throwable, Option[Exam]] = {
-    def addChecksTillNone(queue: Queue[Option[Check]]): Task[Unit] =
+    def addChecksTillNone(queue: Queue[Option[Check]], reportIssue: TechnicalIssue => UIO[Unit]): Task[Unit] =
       queue.take.flatMap {
         case None => Task.unit
-        case Some(check) => db.addCheck(check) *> addChecksTillNone(queue)
+        case Some(check) => keepTryingAddCheck(db, check, reportIssue) *> addChecksTillNone(queue, reportIssue)
       }
 
-    val addChecksQueueWithWorkerFiber: Managed[Throwable, Queue[Option[Check]]] = {
-      def acquire: UIO[Queue[Option[Check]]] = for {
+    val checksQueueWithWorkerFiber: Managed[Throwable, (Queue[Option[Check]], Ref[Option[TechnicalIssue]])] = {
+      def acquire: UIO[(Queue[Option[Check]], Ref[Option[TechnicalIssue]])] = for {
         queue <- Queue.bounded[Option[Check]](1)
-        _ <- addChecksTillNone(queue).fork
-      } yield queue
+        issueRef <- Ref.make(none[TechnicalIssue])
+        _ <- addChecksTillNone(queue, issue => issueRef.set(issue.some)).fork
+      } yield (queue, issueRef)
 
-      def release(queue: Queue[Option[Check]]): UIO[Unit] =
-        queue.offer(None).unit
+      def release(queueWithRef: (Queue[Option[Check]], Ref[Option[TechnicalIssue]])): UIO[Unit] =
+        queueWithRef._1.offer(None).unit
 
       Managed.make(acquire)(release)
     }
 
-    addChecksQueueWithWorkerFiber.mapM { queue =>
+    checksQueueWithWorkerFiber.mapM { case (queue, technicalIssueRef) =>
       val trainingData = TrainingData.convert(data)
 
       for {
@@ -60,7 +68,9 @@ class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner with 
             examStateRef <- Ref.make(ExamState())
             semaphore <- Semaphore.make(1)
           } yield {
-            Exam.create(data)(schemeImpl.status.map(_.shouldStop)) { (ask: Question => Task[Option[Answer]]) =>
+            val shouldStop = schemeImpl.status.map(_.shouldStop)
+            val technicalIssue = technicalIssueRef.get.tap(_ => technicalIssueRef.set(None))
+            Exam.create(data)(shouldStop, technicalIssue) { (ask: Question => Task[Option[Answer]]) =>
               semaphore.withPermit {
                 for {
                   state <- examStateRef.get
@@ -78,6 +88,26 @@ class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner with 
         } getOrElse(UIO.succeed(None))
       } yield exam
     }
+  }
+
+  private def keepTryingAddCheck(db: VocabularyDb, check: Check, reportIssue: TechnicalIssue => UIO[Unit]): Task[Unit] = {
+    val tryAddCheck: UIO[Boolean] = db.addCheck(check).const(true).catchAll {
+      case throwable: Throwable =>
+        val issue = TechnicalIssue.fromString(throwable.toString)
+            .getOrElse(TechnicalIssue(Refined.unsafeApply[String, NonEmpty](s"Got exception of type: ${throwable.getClass.getCanonicalName}")))
+
+        logger.errorIO("Could not add check", throwable) *>
+          reportIssue(issue).const(false)
+    }
+
+    val retrySchedule: Schedule[Boolean, Unit] = {
+      Schedule.doUntil[Boolean](identity) &&
+        (Schedule.exponential(Duration(250, TimeUnit.MILLISECONDS)) ||
+          Schedule.spaced(Duration(10, TimeUnit.SECONDS)))
+    }.unit
+
+
+    tryAddCheck.repeat(retrySchedule).provide(Clock.Live).unit
   }
 
   private def updateExamState(question: Question,

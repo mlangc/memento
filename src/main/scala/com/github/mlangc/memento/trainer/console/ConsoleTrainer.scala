@@ -29,6 +29,7 @@ import com.github.mlangc.memento.trainer.model.Answer
 import com.github.mlangc.memento.trainer.model.Feedback
 import com.github.mlangc.memento.trainer.model.Feedback.Correction
 import com.github.mlangc.memento.trainer.model.Question
+import com.github.mlangc.memento.trainer.model.TechnicalIssue
 import com.github.mlangc.memento.trainer.repetition.leitner.LeitnerRepetitionScheme
 import com.github.mlangc.slf4zio.api.LoggingSupport
 import eu.timepit.refined.auto._
@@ -163,7 +164,8 @@ class ConsoleTrainer private(consoleMessages: ConsoleMessages,
 
   private def doAsk(exam: Exam)(question: Question): Task[Option[Answer]] =
     for {
-      prompt <- printQuestion(question, exam.language1, exam.language2)
+      maybeIssue <- exam.technicalIssue
+      prompt <- printQuestion(question, exam.language1, exam.language2, maybeIssue)
       input <- readInput(prompt)
       answer <- parseInput(input) match {
         case Right(answer) => Task.succeed(answer)
@@ -171,34 +173,43 @@ class ConsoleTrainer private(consoleMessages: ConsoleMessages,
       }
     } yield answer
 
-  private def printQuestion(question: Question, lang1: LanguageName, lang2: LanguageName): Task[String] = Task {
-    val (knownSide, knownLang) = question.direction match {
-      case Direction.LeftToRight => (question.translation.left, lang1)
-      case _ => (question.translation.right, lang2)
-    }
+  private def printQuestion(question: Question,
+                            lang1: LanguageName, lang2: LanguageName,
+                            maybeIssue: Option[TechnicalIssue]): Task[String] =
+    Task {
+      val (knownSide, knownLang) = question.direction match {
+        case Direction.LeftToRight => (question.translation.left, lang1)
+        case _ => (question.translation.right, lang2)
+      }
 
-    val lastAsked: Option[LocalDateTime] = question.lastAsked.map { instant =>
-      instant.atZone(ZoneId.systemDefault()).toLocalDateTime.truncatedTo(ChronoUnit.SECONDS)
-    }
+      val lastAsked: Option[LocalDateTime] = question.lastAsked.map { instant =>
+        instant.atZone(ZoneId.systemDefault()).toLocalDateTime.truncatedTo(ChronoUnit.SECONDS)
+      }
 
-    println(consoleMessages.help(QuitCmd, HintCmd, ReloadCmd))
-    println()
-    println(consoleMessages.timesAskedBefore(question.timesAskedBefore))
-    println(consoleMessages.lastAsked(lastAsked))
-
-    println()
-    question.motivators.foreach { motivator =>
-      println(motivator.text(motivatorMessages))
-    }
-
-    println()
-    question.hint.foreach { hint =>
-      println(consoleMessages.hint(hint.spelling))
+      println(consoleMessages.help(QuitCmd, HintCmd, ReloadCmd))
       println()
-    }
 
-    s"$knownLang[${knownSide.spelling}] ---> "
-  }
+      maybeIssue.foreach { issue =>
+        println(s"There seems to be a technical issue: ${issue.explanation}")
+        println()
+      }
+
+      println(consoleMessages.timesAskedBefore(question.timesAskedBefore))
+      println(consoleMessages.lastAsked(lastAsked))
+
+      println()
+      question.motivators.foreach { motivator =>
+        println(motivator.text(motivatorMessages))
+      }
+
+      println()
+      question.hint.foreach { hint =>
+        println(consoleMessages.hint(hint.spelling))
+        println()
+      }
+
+      s"$knownLang[${knownSide.spelling}] ---> "
+    }
 
   private def readInput(prompt: String): Task[String] = Task {
     reader.readLine(prompt)

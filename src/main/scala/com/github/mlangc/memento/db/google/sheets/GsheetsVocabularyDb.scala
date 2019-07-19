@@ -33,7 +33,11 @@ import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.util.Try
 
-private[sheets] class GsheetsVocabularyDb private(sheetId: String, sheets: Sheets, blockingModule: Blocking) extends VocabularyDb with LoggingSupport {
+private[sheets] class GsheetsVocabularyDb private(sheetId: String,
+                                                  sheets: Sheets,
+                                                  blockingModule: Blocking)
+  extends VocabularyDb with LoggingSupport {
+
   import blockingModule.blocking.effectBlocking
 
   def load: Task[VocabularyData] = {

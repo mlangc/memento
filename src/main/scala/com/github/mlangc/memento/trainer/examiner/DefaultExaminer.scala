@@ -22,7 +22,6 @@ import zio.Schedule
 import zio.Semaphore
 import zio.Task
 import zio.UIO
-import zio.ZSchedule
 import zio.clock.Clock
 import zio.duration.Duration
 import zio.interop.catz._

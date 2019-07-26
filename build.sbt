@@ -7,7 +7,7 @@ scalaVersion := "2.12.8"
 mainClass in Compile := Some("com.github.mlangc.memento.trainer.console.ConsoleTrainer")
 
 import sbtassembly.AssemblyPlugin.defaultUniversalScript
-assemblyOption in assembly := (assemblyOption in assembly).value.copy(prependShellScript = Some(defaultUniversalScript(shebang = false)))
+assemblyOption in assembly := (assemblyOption in assembly).value.copy(prependShellScript = Some(defaultUniversalScript(shebang = true)))
 assemblyJarName in assembly := s"${name.value}-${version.value}"
 
 assemblyMergeStrategy in assembly := {

@@ -41,12 +41,12 @@ class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner with 
     def addChecksTillNone(queue: Queue[Option[Check]], reportIssue: TechnicalIssue => UIO[Unit]): Task[Unit] =
       queue.take.flatMap {
         case None => Task.unit
-        case Some(check) => keepTryingAddCheck(db, check, reportIssue) *> addChecksTillNone(queue, reportIssue)
+        case Some(check) => keepTryingAddCheck(db, check, queue, reportIssue) *> addChecksTillNone(queue, reportIssue)
       }
 
     val checksQueueWithWorkerFiber: Managed[Throwable, (Queue[Option[Check]], Ref[Option[TechnicalIssue]])] = {
       def acquire: UIO[(Queue[Option[Check]], Ref[Option[TechnicalIssue]])] = for {
-        queue <- Queue.bounded[Option[Check]](1)
+        queue <- Queue.bounded[Option[Check]](15)
         issueRef <- Ref.make(none[TechnicalIssue])
         _ <- addChecksTillNone(queue, issue => issueRef.set(issue.some)).fork
       } yield (queue, issueRef)
@@ -84,19 +84,26 @@ class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner with 
               }
             }.some // it should be possible to use traverse here
           }
-        } getOrElse(UIO.succeed(None))
+        } getOrElse (UIO.succeed(None))
       } yield exam
     }
   }
 
-  private def keepTryingAddCheck(db: VocabularyDb, check: Check, reportIssue: TechnicalIssue => UIO[Unit]): Task[Unit] = {
-    val tryAddCheck: UIO[Boolean] = db.addCheck(check).const(true).catchAll {
-      case throwable: Throwable =>
-        val issue = TechnicalIssue.fromString(throwable.toString)
-            .getOrElse(TechnicalIssue(Refined.unsafeApply[String, NonEmpty](s"Got exception of type: ${throwable.getClass.getCanonicalName}")))
+  private def createIssue(th: Throwable, queued: Int): TechnicalIssue = {
+    val candidate = TechnicalIssue.fromString(th.toString)
+      .getOrElse(TechnicalIssue(Refined.unsafeApply[String, NonEmpty](s"Got exception of type: ${th.getClass.getCanonicalName}")))
 
-        logger.errorIO("Could not add check", throwable) *>
-          reportIssue(issue).const(false)
+    candidate.addWarning(s"${queued + 1} updates will performed as soon as the issue is resolved")
+  }
+
+  private def keepTryingAddCheck(db: VocabularyDb, check: Check, queue: Queue[Option[Check]], reportIssue: TechnicalIssue => UIO[Unit]): Task[Unit] = {
+    val tryAddCheck: UIO[Boolean] = db.addCheck(check).const(true).catchAll { th =>
+      for {
+        queued <- queue.size
+        issue = createIssue(th, queued)
+        _ <- logger.errorIO("Could not add check", th)
+        _ <- reportIssue(issue)
+      } yield false
     }
 
     val retrySchedule: Schedule[Boolean, Unit] = {

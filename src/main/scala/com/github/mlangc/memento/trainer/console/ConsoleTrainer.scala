@@ -191,6 +191,10 @@ class ConsoleTrainer private(consoleMessages: ConsoleMessages,
 
       maybeIssue.foreach { issue =>
         println(s"There seems to be a technical issue: ${issue.explanation}")
+        issue.warnings.foreach { warning =>
+          println(s"Warning: $warning")
+        }
+
         println()
       }
 

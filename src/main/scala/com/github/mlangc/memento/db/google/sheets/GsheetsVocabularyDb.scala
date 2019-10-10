@@ -83,8 +83,7 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: String,
 
         val langNames: Task[(LanguageName, LanguageName)] = {
           getRawValues("Translations!A1:B1").map { rawValues =>
-            rawValues.flatMap(_.asScala)
-              .flatMap(cellToStr) match {
+            rawValues.flatMap(_.asScala).flatMap(cellToStr).toSeq match {
               case Seq(lang1: String, lang2: String) =>
                 (refineV[LanguageNameRefinement](lang1), refineV[LanguageNameRefinement](lang2)) match {
                   case (Right(lang1), Right(lang2)) => (lang1, lang2)

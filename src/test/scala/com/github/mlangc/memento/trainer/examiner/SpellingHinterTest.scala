@@ -6,6 +6,8 @@ import com.github.mlangc.memento.trainer.model.Hint
 import eu.timepit.refined.auto._
 import zio.ZIO
 
+import scala.Ordering.Double.TotalOrdering
+
 class SpellingHinterTest extends BaseZioTest {
   "Test our hinter" - {
     "with a single letter" in {

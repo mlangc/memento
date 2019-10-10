@@ -29,7 +29,7 @@ import zio.RIO
 import zio.Task
 import zio.ZIO
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.duration._
 import scala.util.Try
 
@@ -85,7 +85,7 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: String,
           getRawValues("Translations!A1:B1").map { rawValues =>
             rawValues.flatMap(_.asScala)
               .flatMap(cellToStr) match {
-              case Seq(lang1, lang2) =>
+              case Seq(lang1: String, lang2: String) =>
                 (refineV[LanguageNameRefinement](lang1), refineV[LanguageNameRefinement](lang2)) match {
                   case (Right(lang1), Right(lang2)) => (lang1, lang2)
 
@@ -160,7 +160,7 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: String,
         }
       }
     } yield data
-  }.logDebugPerformance(d => s"Loading sheet took ${d.toMillis}ms", 100.millis)
+    }.logDebugPerformance(d => s"Loading sheet took ${d.toMillis}ms", 100.millis)
 
   def addCheck(check: Check): Task[Unit] = effectBlocking {
     val valueRange = new ValueRange

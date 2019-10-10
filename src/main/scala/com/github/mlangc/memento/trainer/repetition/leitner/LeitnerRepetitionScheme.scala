@@ -133,7 +133,7 @@ class LeitnerRepetitionScheme(boxSpecs: NonEmptyVector[BoxSpec] = BoxSpecs.defau
       val secondsSinceLastCheck = Duration.between(lastCheck.timestamp, now).getSeconds
       val secondsTillExpired = deckState.cards(card)._2.spec.interval.toSeconds
       val secondsRemaining = secondsTillExpired - secondsSinceLastCheck
-      refineV[Positive](secondsRemaining).right.getOrElse(refineMV[Positive](1L))
+      refineV[Positive](secondsRemaining).getOrElse(refineMV[Positive](1L))
     }.getOrElse(refineMV[Positive](1L))
   }
 

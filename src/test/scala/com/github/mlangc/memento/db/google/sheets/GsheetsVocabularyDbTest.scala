@@ -17,8 +17,8 @@ class GsheetsVocabularyDbTest extends GenericVocabularyDbTest {
   private def testSheetIdVar = "TEST_SHEET_ID"
   private def credentialsPathVar = "GOOGLE_CREDENTIALS_PATH"
 
-  private lazy val sheetId = ciris.env[String](testSheetIdVar).value.right.getOrElse("")
-  private lazy val credentialsPath = ciris.env[String](credentialsPathVar).value.right.getOrElse("")
+  private lazy val sheetId = ciris.env[String](testSheetIdVar).value.getOrElse("")
+  private lazy val credentialsPath = ciris.env[String](credentialsPathVar).value.getOrElse("")
 
   protected def db: Managed[Throwable, VocabularyDb] = {
     Managed.fromEffect {

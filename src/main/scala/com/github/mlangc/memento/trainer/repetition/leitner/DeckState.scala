@@ -125,7 +125,8 @@ object DeckState {
       .groupBy(check => Card(check.translation, check.direction)) |+| cards.map(_ -> List.empty[Check]).toMap
 
     checksForCard
-      .filterKeys(cards.contains)
+      .view.filterKeys(cards.contains)
+      .toMap
       .map { case (card, checks) => card -> processChecksForCard(normalizedAndSorted(checks)) }
   }
 
@@ -151,6 +152,7 @@ object DeckState {
     cards.toSeq
       .map(entry => entry._2._2 -> entry._1)
       .groupBy(_._1)
-      .mapValues(_.map(_._2).toSet)
+      .view.mapValues(_.map(_._2).toSet)
+      .toMap
   }
 }

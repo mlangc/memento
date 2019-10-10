@@ -63,8 +63,8 @@ abstract class GenericRepetitionSchemeTest extends BaseZioTest with OptionValues
           questions <- runSimulation(impl, 250)
           _ <- Task {
             val questionsWhereTimesAskedSeemsBroken = questions.groupBy(_.toCard)
-              .mapValues(_.map(_.timesAskedBefore.value).toSet)
-              .mapValues(timesAskedSet => 0.until(timesAskedSet.size).toSet == timesAskedSet)
+              .view.mapValues(_.map(_.timesAskedBefore.value).toSet).toMap
+              .view.mapValues(timesAskedSet => 0.until(timesAskedSet.size).toSet == timesAskedSet).toMap
               .filter(!_._2)
 
             assert(questionsWhereTimesAskedSeemsBroken.isEmpty)

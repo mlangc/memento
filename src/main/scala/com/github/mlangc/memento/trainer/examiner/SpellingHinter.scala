@@ -31,7 +31,7 @@ class SpellingHinter private(spelling: Spelling, revealedRef: Ref[Set[Int]], sem
               if (revealedNew.contains(ind)) c
               else '_'
             }.mkString("")
-            revealRatio <- UIO(refineV[UnitIntervalRefinement](revealedNew.size.toDouble / spelling.value.size).right.get)
+            revealRatio <- UIO(refineV[UnitIntervalRefinement](revealedNew.size.toDouble / spelling.value.size).toOption.get)
             _ <- revealedRef.set(revealedNew)
           } yield Hint(hintSpelling, Refined.unsafeApply(revealRatio))
         }

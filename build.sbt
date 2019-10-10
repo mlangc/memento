@@ -101,7 +101,6 @@ libraryDependencies += "info.debatty" % "java-string-similarity" % "1.2.1"
 libraryDependencies += "io.github.java-diff-utils" % "java-diff-utils" % "4.0"
 
 libraryDependencies += "com.github.mlangc" %% "slf4zio" % "0.2.2"
-libraryDependencies += "org.fusesource.jansi" % "jansi" % "1.18"
 libraryDependencies += "org.jline" % "jline-reader" % "3.11.0"
 
 libraryDependencies += "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4jVersion

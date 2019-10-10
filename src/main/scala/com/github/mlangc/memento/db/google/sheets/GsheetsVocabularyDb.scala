@@ -20,14 +20,14 @@ import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.client.util.store.FileDataStoreFactory
+import com.google.api.services.sheets.v4.model.ValueRange
 import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.SheetsScopes
-import com.google.api.services.sheets.v4.model.ValueRange
 import eu.timepit.refined.refineV
-import zio.Task
-import zio.TaskR
-import zio.ZIO
 import zio.blocking.Blocking
+import zio.RIO
+import zio.Task
+import zio.ZIO
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
@@ -194,7 +194,7 @@ object GsheetsVocabularyDb {
   private lazy val transport = GoogleNetHttpTransport.newTrustedTransport()
   private lazy val jsonFactory = JacksonFactory.getDefaultInstance
 
-  def make(sheetId: String, secrets: File): TaskR[Blocking, GsheetsVocabularyDb] = ZIO.accessM[Blocking] { blockingModule =>
+  def make(sheetId: String, secrets: File): RIO[Blocking, GsheetsVocabularyDb] = ZIO.accessM[Blocking] { blockingModule =>
     blockingModule.blocking.effectBlocking {
       val secretsIn = new FileInputStream(secrets)
       try {

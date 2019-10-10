@@ -97,7 +97,7 @@ class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner with 
   }
 
   private def keepTryingAddCheck(db: VocabularyDb, check: Check, queue: Queue[Option[Check]], reportIssue: TechnicalIssue => UIO[Unit]): Task[Unit] = {
-    val tryAddCheck: UIO[Boolean] = db.addCheck(check).const(true).catchAll { th =>
+    val tryAddCheck: UIO[Boolean] = db.addCheck(check).as(true).catchAll { th =>
       for {
         queued <- queue.size
         issue = createIssue(th, queued)

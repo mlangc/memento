@@ -1,9 +1,9 @@
 package com.github.mlangc.memento.trainer.console
 
 import java.io.File
+import java.time.temporal.ChronoUnit
 import java.time.LocalDateTime
 import java.time.ZoneId
-import java.time.temporal.ChronoUnit
 import java.util.Collections
 
 import cats.instances.string._
@@ -25,9 +25,9 @@ import com.github.mlangc.memento.trainer.console.ConsoleTrainer.Reload
 import com.github.mlangc.memento.trainer.examiner.DefaultExaminer
 import com.github.mlangc.memento.trainer.examiner.Exam
 import com.github.mlangc.memento.trainer.examiner.Examiner
+import com.github.mlangc.memento.trainer.model.Feedback.Correction
 import com.github.mlangc.memento.trainer.model.Answer
 import com.github.mlangc.memento.trainer.model.Feedback
-import com.github.mlangc.memento.trainer.model.Feedback.Correction
 import com.github.mlangc.memento.trainer.model.Question
 import com.github.mlangc.memento.trainer.model.TechnicalIssue
 import com.github.mlangc.memento.trainer.repetition.leitner.LeitnerRepetitionScheme
@@ -37,14 +37,8 @@ import org.fusesource.jansi.Ansi.ansi
 import org.fusesource.jansi.AnsiConsole.out.print
 import org.fusesource.jansi.AnsiConsole.out.println
 import org.jline.reader.LineReaderBuilder
-import zio.App
-import zio.Ref
-import zio.Task
-import zio.TaskR
-import zio.UIO
-import zio.ZIO
+import zio._
 import zio.blocking.Blocking
-import zio.console
 import zio.console.Console
 
 import scala.io.StdIn
@@ -169,7 +163,7 @@ class ConsoleTrainer private(consoleMessages: ConsoleMessages,
       input <- readInput(prompt)
       answer <- parseInput(input) match {
         case Right(answer) => Task.succeed(answer)
-        case Left(Reload) => reloadingRef.set(true).const(None)
+        case Left(Reload) => reloadingRef.set(true).as(None)
       }
     } yield answer
 
@@ -236,7 +230,7 @@ object ConsoleTrainer extends App {
   private case object Reload
 
   def run(args: List[String]): ZIO[Environment, Nothing, Int] = {
-    def tryTraining(sheetsCfg: GsheetsCfg): TaskR[Blocking, Int] =
+    def tryTraining(sheetsCfg: GsheetsCfg): RIO[Blocking, Int] =
       for {
         db <- GsheetsVocabularyDb.make(sheetsCfg.sheetId, new File(sheetsCfg.credentialsPath))
         messages <- Messages.forDefaultLocale

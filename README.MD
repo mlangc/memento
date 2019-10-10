@@ -28,7 +28,7 @@ it under `memento-gsheets-credentials.json`.
 Download Memento, and create a launch script like this:
 
 ```bash
-#!/bin/bash
+#!/usr/bin/env bash
 
 export SHEET_ID=put-your-sheet-id-here
 export GOOGLE_CREDENTIALS_PATH=put-your-credentials-path-here

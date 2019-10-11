@@ -34,7 +34,6 @@ import com.github.mlangc.memento.trainer.repetition.leitner.LeitnerRepetitionSch
 import com.github.mlangc.slf4zio.api.LoggingSupport
 import eu.timepit.refined.auto._
 import org.fusesource.jansi.Ansi.ansi
-import org.fusesource.jansi.AnsiConsole.out.print
 import org.fusesource.jansi.AnsiConsole.out.println
 import org.jline.reader.LineReaderBuilder
 import zio._
@@ -104,7 +103,7 @@ class ConsoleTrainer private(consoleMessages: ConsoleMessages,
   private def eventuallyWaitForEnter(feedback: Feedback): Task[Unit] =
     if (feedback == Feedback.Postponed) Task.unit else Task {
       println()
-      print(consoleMessages.pressEnterToContinue)
+      println(consoleMessages.pressEnterToContinue)
       StdIn.readLine()
     }.unit
 

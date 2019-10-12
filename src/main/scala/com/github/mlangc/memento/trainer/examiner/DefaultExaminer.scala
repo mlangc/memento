@@ -66,6 +66,7 @@ class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner with 
           for {
             examStateRef <- Ref.make(ExamState())
             semaphore <- Semaphore.make(1)
+            refinedImplNext <- RepetitionHelpers.avoidRepeatRelated(schemeImpl.next)((q1, q2) => q1.translation == q2.translation)
           } yield {
             val shouldStop = schemeImpl.status.map(_.shouldStop)
             val technicalIssue = technicalIssueRef.get.tap(_ => technicalIssueRef.set(None))
@@ -73,7 +74,7 @@ class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner with 
               semaphore.withPermit {
                 for {
                   state <- examStateRef.get
-                  questionAndHinter <- nextQuestion(state, schemeImpl)
+                  questionAndHinter <- nextQuestion(state, refinedImplNext)
                   (question, hinter) = questionAndHinter
                   answer <- ask(question)
                   feedback = answer.map(giveFeedback(question, trainingData.synonyms))
@@ -129,7 +130,7 @@ class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner with 
     }.getOrElse(state)
   }
 
-  private def nextQuestion(state: ExamState, schemeImpl: RepetitionScheme.Impl): Task[(Question, Option[SpellingHinter])] = {
+  private def nextQuestion(state: ExamState, implNext: Task[Question]): Task[(Question, Option[SpellingHinter])] = {
     state match {
       case ExamState(Some(lastQuestion), Some(Answer.NeedHint), _, _) =>
         for {
@@ -140,7 +141,7 @@ class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner with 
         } yield (nextQuestion, Some(spellingHinter))
 
       case _ =>
-        schemeImpl.next.map((_, None))
+        implNext.map((_, None))
     }
   }
 

@@ -40,7 +40,7 @@ class LeitnerRepetitionScheme(boxSpecs: NonEmptyVector[BoxSpec] = BoxSpecs.defau
       deckStateRef <- Ref.make(initialDeckState(translations, checks, now))
     } yield {
       new LeitnerRepetitionScheme.Impl {
-        def next: Task[Question] =
+        val next: Task[Question] =
           for {
             deckState <- deckStateRef.get
             question <- nextQuestion(deckState)
@@ -49,7 +49,7 @@ class LeitnerRepetitionScheme(boxSpecs: NonEmptyVector[BoxSpec] = BoxSpecs.defau
         def update(check: Check): Task[Unit] =
           deckStateRef.update(_.updateWith(check).newState).unit
 
-        def status: Task[RepetitionStatus] =
+        val status: Task[RepetitionStatus] =
           for {
             now <- UIO(Instant.now(clock))
             deckState <- deckStateRef.update(_.recalculateAt(now).newState)
@@ -62,7 +62,7 @@ class LeitnerRepetitionScheme(boxSpecs: NonEmptyVector[BoxSpec] = BoxSpecs.defau
             }
           } yield status
 
-        def getDeckState: UIO[DeckState] = deckStateRef.get
+        val getDeckState: UIO[DeckState] = deckStateRef.get
       }
     }
 

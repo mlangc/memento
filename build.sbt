@@ -1,6 +1,6 @@
 name := "memento"
 
-version := "0.1.0"
+version := "0.2.0"
 
 scalaVersion := "2.13.1"
 
@@ -70,9 +70,6 @@ val silencerVersion = "1.4.4"
 val log4jVersion = "2.12.0"
 
 libraryDependencies += "dev.zio" %% "zio-interop-cats" % "2.0.0.0-RC5"
-libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.8" % Test
-libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.14.0" % Test
-
 libraryDependencies += "com.google.oauth-client" % "google-oauth-client-jetty" % "1.29.0"
 libraryDependencies += "com.google.apis" % "google-api-services-sheets" % "v4-rev579-1.25.0"
 
@@ -111,4 +108,10 @@ libraryDependencies ++= Seq(
   compilerPlugin("com.github.ghik" % "silencer-plugin" % silencerVersion cross CrossVersion.full),
   "com.github.ghik" % "silencer-lib" % silencerVersion % Provided cross CrossVersion.full
 )
+
+libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.8" % Test
+libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.14.0" % Test
+libraryDependencies += "dev.zio" %% "zio-test" % zioVersion % Test
+libraryDependencies += "dev.zio" %% "zio-test-sbt" % "1.0.0-RC14" % Test
+testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
 

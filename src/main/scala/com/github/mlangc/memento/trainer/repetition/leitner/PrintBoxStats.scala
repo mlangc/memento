@@ -16,6 +16,7 @@ import eu.timepit.refined.auto._
 import zio.console.Console
 import zio.App
 import zio.UIO
+import zio.ZEnv
 import zio.ZIO
 import zio.console
 
@@ -23,7 +24,7 @@ import zio.console
 object PrintBoxStats extends App {
   private val boxSpecs = BoxSpecs.defaultBoxSpecs
 
-  override def run(args: List[String]): ZIO[PrintBoxStats.Environment, Nothing, Int] = {
+  override def run(args: List[String]): ZIO[ZEnv, Nothing, Int] = {
     for {
       config <- ZIO.fromEither(GsheetsCfg.load).orDieWith(errors => new IllegalArgumentException("" + errors))
       db <- GsheetsVocabularyDb.make(config.sheetId, new File(config.credentialsPath))

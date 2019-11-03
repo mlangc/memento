@@ -18,10 +18,10 @@ import eu.timepit.refined.collection.NonEmpty
 import zio.Managed
 import zio.Queue
 import zio.Ref
-import zio.Schedule
 import zio.Semaphore
 import zio.Task
 import zio.UIO
+import zio.ZSchedule
 import zio.clock.Clock
 import zio.duration.Duration
 import zio.interop.catz._
@@ -107,10 +107,10 @@ class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner with 
       } yield false
     }
 
-    val retrySchedule: Schedule[Boolean, Unit] = {
-      Schedule.doUntil[Boolean](identity) &&
-        (Schedule.exponential(Duration(250, TimeUnit.MILLISECONDS)) ||
-          Schedule.spaced(Duration(10, TimeUnit.SECONDS)))
+    val retrySchedule: ZSchedule[Clock, Boolean, Unit] = {
+      ZSchedule.doUntil[Boolean](identity) &&
+        (ZSchedule.exponential(Duration(250, TimeUnit.MILLISECONDS)) ||
+          ZSchedule.spaced(Duration(10, TimeUnit.SECONDS)))
     }.unit
 
 

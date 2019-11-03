@@ -228,7 +228,7 @@ class ConsoleTrainer private(consoleMessages: ConsoleMessages,
 object ConsoleTrainer extends App {
   private case object Reload
 
-  def run(args: List[String]): ZIO[Environment, Nothing, Int] = {
+  def run(args: List[String]): ZIO[ZEnv, Nothing, Int] = {
     def tryTraining(sheetsCfg: GsheetsCfg): RIO[Blocking, Int] =
       for {
         db <- GsheetsVocabularyDb.make(sheetsCfg.sheetId, new File(sheetsCfg.credentialsPath))

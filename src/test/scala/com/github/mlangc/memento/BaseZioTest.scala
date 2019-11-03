@@ -3,13 +3,15 @@ package com.github.mlangc.memento
 import org.scalactic.source.Position
 import zio.Cause
 import zio.FiberFailure
-import zio.{DefaultRuntime, ZIO}
+import zio.ZEnv
+import zio.DefaultRuntime
+import zio.ZIO
 
 abstract class BaseZioTest extends BaseTest with DefaultRuntime {
   protected class FreeSpecZioStringWrapper(string: String, position: Position) {
     private val impl = new FreeSpecStringWrapper(string, position)
 
-    def inIO[E, A](zio: ZIO[Environment, E, A]): Unit = {
+    def inIO[E, A](zio: ZIO[ZEnv, E, A]): Unit = {
       impl.in {
         unsafeRun(zio.either) match {
           case Right(_) => ()

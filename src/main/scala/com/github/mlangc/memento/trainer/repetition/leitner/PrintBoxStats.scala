@@ -22,6 +22,7 @@ import zio.console
 
 
 object PrintBoxStats extends App {
+  private type Resistance = Int
   private val boxSpecs = BoxSpecs.defaultBoxSpecs
 
   override def run(args: List[String]): ZIO[ZEnv, Nothing, Int] = {
@@ -42,7 +43,7 @@ object PrintBoxStats extends App {
         case None => console.putStrLn("No translations - nothing to do")
       }
     } yield 0
-  }.orDie
+    }.orDie
 
   private def prettyPrint(deckState: DeckState): ZIO[Console, Nothing, Unit] =
     console.putStrLn(render(deckState))
@@ -50,15 +51,17 @@ object PrintBoxStats extends App {
   private def render(deckState: DeckState): String = {
     def getState(card: Card): CardState = deckState.cards(card)._1
 
+    val resistances = calcResistances(deckState)
+
     def renderCard(card: Card): String = {
-      s"${getState(card)} -- ${card.translation.left.spelling} ${toArrow(card.direction)} ${card.translation.right.spelling}"
+      s"${getState(card)}[r${resistances(card)}] -- ${card.translation.left.spelling} ${toArrow(card.direction)} ${card.translation.right.spelling}"
     }
 
     def renderBox(boxRef: BoxRef): String = {
       val header = s"""Box(${boxRef.index}, ${boxRef.spec.interval}, ${boxRef.spec.minScore}):"""
 
       val cards = deckState.boxes(boxRef).toList
-        .sortBy(card => (getState(card).shouldBeTested, getState(card).entryName, card.translation.left.spelling.value, card.direction.toString))
+        .sortBy(card => (getState(card).shouldBeTested, -resistances(card), getState(card).entryName, card.translation.left.spelling.value, card.direction.toString))
 
       val body = cards
         .map(renderCard).map("  " + _)
@@ -86,4 +89,12 @@ object PrintBoxStats extends App {
     case LeftToRight => "-->"
     case RightToLeft => "<--"
   }
+
+  private def calcResistances(deckState: DeckState): Map[Card, Resistance] =
+    deckState.cards.map { case (card, (_, BoxRef(_, i))) =>
+      card -> {
+        val trained = deckState.checks.count(card.correspondsTo)
+        (trained.toDouble / (i + 1)).round.toInt
+      }
+    }
 }

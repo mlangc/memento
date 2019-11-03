@@ -12,7 +12,7 @@ import eu.timepit.refined.auto._
 import com.github.ghik.silencer.silent
 import zio.blocking.Blocking
 
-@silent("`Any`")
+@silent("inferred to be `Any`")
 class GsheetsVocabularyDbTest extends GenericVocabularyDbTest {
   private def testSheetIdVar = "TEST_SHEET_ID"
   private def credentialsPathVar = "GOOGLE_CREDENTIALS_PATH"
@@ -37,6 +37,7 @@ class GsheetsVocabularyDbTest extends GenericVocabularyDbTest {
           assert(data.translations.contains(Translation("sie", "elle")))
           assert(data.checks.filter(_.translation == Translation("test", "test")).nonEmpty)
           assert(data.synonyms1.contains(Synonym("dumm", "blöd")))
+          assert(data.synonyms1.contains(Synonym("in Hinblick auf", "in Bezug auf")))
           assert(data.synonyms2.contains(Synonym("forêt", "bois")))
           assert(data.language1.value === "Deutsch")
           assert(data.language2.value === "Französisch")

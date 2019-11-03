@@ -44,6 +44,19 @@ class SynonymsTest extends BaseTest with ScalaCheckPropertyChecks {
         Synonym("v", "w") :: Nil) === Synonyms.None)
     }
 
+    "synonyms where only one side has a corresponding translation" in {
+      assert {
+        Synonyms.from(
+          Translation("a", "b") :: Nil,
+          Synonym("aa", "a") :: Nil,
+          Synonym("bb", "b") :: Nil
+        ) === Synonyms(
+          Map(Vocabulary("a") -> Set(Vocabulary("aa")), Vocabulary("aa") -> Set(Vocabulary("a"))),
+          Map(Vocabulary("b") -> Set(Vocabulary("bb")), Vocabulary("bb") -> Set(Vocabulary("b")))
+        )
+      }
+    }
+
     "a single translation and a single synonym" in {
       assert(Synonyms.from(
         Translation("verraten", "trahir") :: Nil,
@@ -133,6 +146,14 @@ class SynonymsTest extends BaseTest with ScalaCheckPropertyChecks {
 
         assert(findSynsToSelf(syns.left).isEmpty)
         assert(findSynsToSelf(syns.right).isEmpty)
+      }
+    }
+
+    "Swapping seeding synonyms doesn't make a difference" in {
+      forAll(synonymsWithInputGen) { case (synonyms, leftSyns, rightSyns, translations) =>
+        def swap(syn: Synonym) = Synonym(syn.voc2, syn.voc1)
+        val synonyms2 = Synonyms.from(translations, leftSyns.map(swap), rightSyns.map(swap))
+        assert(synonyms === synonyms2)
       }
     }
   }

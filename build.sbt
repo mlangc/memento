@@ -113,5 +113,7 @@ libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.8" % Test
 libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.14.2" % Test
 libraryDependencies += "dev.zio" %% "zio-test" % zioVersion % Test
 libraryDependencies += "dev.zio" %% "zio-test-sbt" % zioVersion % Test
+libraryDependencies += "commons-io" % "commons-io" % "2.6" % Test
+
 testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
 

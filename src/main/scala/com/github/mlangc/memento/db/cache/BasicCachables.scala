@@ -30,7 +30,7 @@ trait BasicCachables {
 
   implicit val shortCachable: Cachable[Short] = new Cachable[Short] {
     def toBytes(a: Short): Array[Byte] = {
-      val res = Array[Byte](2)
+      val res = new Array[Byte](2)
       res(0) = (a & 0xff).toByte
       res(1) = ((a >> 8) & 0xff).toByte
       res
@@ -38,7 +38,19 @@ trait BasicCachables {
 
     def fromBytes(bytes: Array[Byte]): Either[IllegalArgumentException, Short] =
       if (bytes.length != 2) new IllegalArgumentException(s"Cannot construct short from ${bytes.length} bytes").asLeft
-      else (((bytes(0) & 0xff) << 8) | (bytes(1) & 0xff)).toShort.asRight
+      else ((bytes(0) & 0xff) | ((bytes(1) & 0xff) << 8)).toShort.asRight
+  }
+
+  implicit val intCachable: Cachable[Int] = new Cachable[Int] {
+    def toBytes(a: Int): Array[Byte] = {
+      val buffer = ByteBuffer.allocate(4)
+      buffer.putInt(a)
+      buffer.array()
+    }
+
+    def fromBytes(bytes: Array[Byte]): Either[IllegalArgumentException, Int] =
+      if (bytes.length != 4) new IllegalArgumentException(s"Cannot construct int from ${bytes.length} bytes").asLeft
+      else ByteBuffer.wrap(bytes).getInt(0).asRight
   }
 
 

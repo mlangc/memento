@@ -1,9 +1,9 @@
 package com.github.mlangc.memento.trainer.console
 
 import java.io.File
-import java.time.temporal.ChronoUnit
 import java.time.LocalDateTime
 import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import java.util.Collections
 
 import cats.instances.string._
@@ -25,12 +25,13 @@ import com.github.mlangc.memento.trainer.console.ConsoleTrainer.Reload
 import com.github.mlangc.memento.trainer.examiner.DefaultExaminer
 import com.github.mlangc.memento.trainer.examiner.Exam
 import com.github.mlangc.memento.trainer.examiner.Examiner
-import com.github.mlangc.memento.trainer.model.Feedback.Correction
 import com.github.mlangc.memento.trainer.model.Answer
 import com.github.mlangc.memento.trainer.model.Feedback
+import com.github.mlangc.memento.trainer.model.Feedback.Correction
 import com.github.mlangc.memento.trainer.model.Question
 import com.github.mlangc.memento.trainer.model.TechnicalIssue
 import com.github.mlangc.memento.trainer.repetition.leitner.LeitnerRepetitionScheme
+import com.github.mlangc.memento.util.VersionInfo
 import com.github.mlangc.slf4zio.api.LoggingSupport
 import eu.timepit.refined.auto._
 import org.fusesource.jansi.Ansi.ansi
@@ -243,13 +244,16 @@ object ConsoleTrainer extends App {
           console.putStrLn("  " + error.message)
         } *> ZIO.succeed(1)
 
-    GsheetsCfg.load match {
-      case Left(configErrors) => handleConfigErrors(configErrors)
+    if (args == List("--version")) showVersion
+    else {
+      GsheetsCfg.load match {
+        case Left(configErrors) => handleConfigErrors(configErrors)
 
-      case Right(sheetsCfg) => tryTraining(sheetsCfg).catchSome {
-        case errorMessage: ErrorMessage =>
-          console.putStrLn(errorMessage.getMessage) *> ZIO.succeed(1)
-      }.orDie
+        case Right(sheetsCfg) => tryTraining(sheetsCfg).catchSome {
+          case errorMessage: ErrorMessage =>
+            console.putStrLn(errorMessage.getMessage) *> ZIO.succeed(1)
+        }.orDie
+      }
     }
   }
 
@@ -259,4 +263,7 @@ object ConsoleTrainer extends App {
       reloadRef <- Ref.make(false)
       trainer = new ConsoleTrainer(consoleMessages, motivatorMessages, stopMessageDismissedRef, reloadRef)
     } yield trainer
+
+  private def showVersion: UIO[Int] =
+    UIO(println(VersionInfo.render)).as(0)
 }

@@ -6,8 +6,8 @@ import ciris.refined._
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.collection.NonEmpty
 
-case class GsheetsCfg private(sheetId: String Refined NonEmpty,
-                              credentialsPath: String Refined NonEmpty)
+case class GsheetsCfg private(sheetId: SheetId,
+                              credentialsPath: CredentialsPath)
 
 object GsheetsCfg {
   def load: Either[ConfigErrors, GsheetsCfg] =

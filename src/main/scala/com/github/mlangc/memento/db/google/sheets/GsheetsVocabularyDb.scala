@@ -1,9 +1,7 @@
 package com.github.mlangc.memento.db.google.sheets
 
 import java.io.File
-import java.io.FileInputStream
 import java.io.FileNotFoundException
-import java.io.InputStreamReader
 import java.time.Instant
 import java.util
 import java.util.Collections
@@ -12,14 +10,8 @@ import com.github.mlangc.memento.db.VocabularyDb
 import com.github.mlangc.memento.db.model._
 import com.github.mlangc.memento.errors.ErrorMessage
 import com.github.mlangc.slf4zio.api.LoggingSupport
-import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp
-import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver
-import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow
-import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
-import com.google.api.client.util.store.FileDataStoreFactory
 import com.google.api.services.sheets.v4.Sheets
-import com.google.api.services.sheets.v4.SheetsScopes
 import com.google.api.services.sheets.v4.model.ValueRange
 import eu.timepit.refined.refineV
 import zio.RIO
@@ -190,33 +182,20 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: String,
 object GsheetsVocabularyDb {
   def make(sheetId: String, secrets: File): RIO[Blocking, GsheetsVocabularyDb] =
     GlobalJacksonFactory.get.zipPar(GlobalNetHttpTransport.get).flatMap { case (jacksonFactory, httpTransport) =>
-      ZIO.accessM[Blocking] { blockingModule =>
-        blockingModule.blocking.effectBlocking {
-          val secretsIn = new FileInputStream(secrets)
-          try {
-            val clientSecrets = GoogleClientSecrets.load(jacksonFactory, new InputStreamReader(secretsIn))
-            val scopes = Collections.singletonList(SheetsScopes.SPREADSHEETS)
-
-            val flow = new GoogleAuthorizationCodeFlow.Builder(httpTransport, jacksonFactory, clientSecrets, scopes)
-              .setDataStoreFactory(new FileDataStoreFactory(new File("tokens")))
-              .setAccessType("offline")
-              .build()
-
-            val receiver = new LocalServerReceiver.Builder().setPort(8888).build()
-            val credentials = new AuthorizationCodeInstalledApp(flow, receiver).authorize("user")
-            val service = new Sheets.Builder(httpTransport, jacksonFactory, credentials)
+      GsheetsAuthorizer.authorize(secrets).flatMap { credential =>
+        ZIO.accessM[Blocking] { blockingModule =>
+          blockingModule.blocking.effectBlocking {
+            val service = new Sheets.Builder(httpTransport, jacksonFactory, credential)
               .setApplicationName("memento")
               .build()
 
             new GsheetsVocabularyDb(sheetId, service, blockingModule)
-          } finally {
-            secretsIn.close()
-          }
-        }.mapError {
-          case fnf: FileNotFoundException =>
-            new ErrorMessage(s"Please verify your configuration:\n  ${fnf.getMessage}", fnf)
+          }.mapError {
+            case fnf: FileNotFoundException =>
+              new ErrorMessage(s"Please verify your configuration:\n  ${fnf.getMessage}", fnf)
 
-          case e => e
+            case e => e
+          }
         }
       }
     }

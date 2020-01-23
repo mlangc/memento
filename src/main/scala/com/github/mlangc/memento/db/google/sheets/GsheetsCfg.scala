@@ -12,7 +12,7 @@ case class GsheetsCfg private(sheetId: SheetId,
 object GsheetsCfg {
   def load: Either[ConfigErrors, GsheetsCfg] =
     ciris.loadConfig(
-      ciris.env[String Refined NonEmpty]("SHEET_ID"),
+      ciris.env[SheetId]("SHEET_ID"),
       ciris.env[String Refined NonEmpty]("GOOGLE_CREDENTIALS_PATH")
     )(GsheetsCfg(_, _)).result
 }

@@ -16,21 +16,19 @@ import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInsta
 import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow
 import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets
-import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
-import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.client.util.store.FileDataStoreFactory
-import com.google.api.services.sheets.v4.model.ValueRange
 import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.SheetsScopes
+import com.google.api.services.sheets.v4.model.ValueRange
 import eu.timepit.refined.refineV
-import zio.blocking.Blocking
 import zio.RIO
 import zio.Task
 import zio.ZIO
+import zio.blocking.Blocking
 
-import scala.jdk.CollectionConverters._
 import scala.concurrent.duration._
+import scala.jdk.CollectionConverters._
 import scala.util.Try
 
 private[sheets] class GsheetsVocabularyDb private(sheetId: String,
@@ -190,37 +188,37 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: String,
 }
 
 object GsheetsVocabularyDb {
-  private lazy val transport = GoogleNetHttpTransport.newTrustedTransport()
-  private lazy val jsonFactory = JacksonFactory.getDefaultInstance
+  def make(sheetId: String, secrets: File): RIO[Blocking, GsheetsVocabularyDb] =
+    GlobalJacksonFactory.get.zipPar(GlobalNetHttpTransport.get).flatMap { case (jacksonFactory, httpTransport) =>
+      ZIO.accessM[Blocking] { blockingModule =>
+        blockingModule.blocking.effectBlocking {
+          val secretsIn = new FileInputStream(secrets)
+          try {
+            val clientSecrets = GoogleClientSecrets.load(jacksonFactory, new InputStreamReader(secretsIn))
+            val scopes = Collections.singletonList(SheetsScopes.SPREADSHEETS)
 
-  def make(sheetId: String, secrets: File): RIO[Blocking, GsheetsVocabularyDb] = ZIO.accessM[Blocking] { blockingModule =>
-    blockingModule.blocking.effectBlocking {
-      val secretsIn = new FileInputStream(secrets)
-      try {
-        val clientSecrets = GoogleClientSecrets.load(jsonFactory, new InputStreamReader(secretsIn))
-        val scopes = Collections.singletonList(SheetsScopes.SPREADSHEETS)
+            val flow = new GoogleAuthorizationCodeFlow.Builder(httpTransport, jacksonFactory, clientSecrets, scopes)
+              .setDataStoreFactory(new FileDataStoreFactory(new File("tokens")))
+              .setAccessType("offline")
+              .build()
 
-        val flow = new GoogleAuthorizationCodeFlow.Builder(transport, jsonFactory, clientSecrets, scopes)
-          .setDataStoreFactory(new FileDataStoreFactory(new File("tokens")))
-          .setAccessType("offline")
-          .build()
+            val receiver = new LocalServerReceiver.Builder().setPort(8888).build()
+            val credentials = new AuthorizationCodeInstalledApp(flow, receiver).authorize("user")
+            val service = new Sheets.Builder(httpTransport, jacksonFactory, credentials)
+              .setApplicationName("memento")
+              .build()
 
-        val receiver = new LocalServerReceiver.Builder().setPort(8888).build()
-        val credentials = new AuthorizationCodeInstalledApp(flow, receiver).authorize("user")
-        val service = new Sheets.Builder(transport, jsonFactory, credentials)
-          .setApplicationName("memento")
-          .build()
+            new GsheetsVocabularyDb(sheetId, service, blockingModule)
+          } finally {
+            secretsIn.close()
+          }
+        }.mapError {
+          case fnf: FileNotFoundException =>
+            new ErrorMessage(s"Please verify your configuration:\n  ${fnf.getMessage}", fnf)
 
-        new GsheetsVocabularyDb(sheetId, service, blockingModule)
-      } finally {
-        secretsIn.close()
+          case e => e
+        }
       }
-    }.mapError {
-      case fnf: FileNotFoundException =>
-        new ErrorMessage(s"Please verify your configuration:\n  ${fnf.getMessage}", fnf)
-
-      case e => e
     }
-  }
 }
 

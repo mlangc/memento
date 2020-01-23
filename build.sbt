@@ -117,3 +117,12 @@ libraryDependencies += "commons-io" % "commons-io" % "2.6"
 
 testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
 
+enablePlugins(BuildInfoPlugin)
+buildInfoKeys := Seq[BuildInfoKey](
+  name, version, scalaVersion, sbtVersion,
+  BuildInfoKey("head" -> git.gitHeadCommit.value.getOrElse("???")),
+  BuildInfoKey("dirty" -> git.gitUncommittedChanges.value))
+
+
+buildInfoPackage := "com.github.mlangc.memento"
+buildInfoOptions += BuildInfoOption.BuildTime

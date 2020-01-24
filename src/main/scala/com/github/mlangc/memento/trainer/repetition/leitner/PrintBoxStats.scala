@@ -1,6 +1,5 @@
 package com.github.mlangc.memento.trainer.repetition.leitner
 
-import java.io.File
 import java.time.Instant
 
 import cats.data.NonEmptyList
@@ -13,12 +12,12 @@ import com.github.mlangc.memento.db.model.Direction.RightToLeft
 import com.github.mlangc.memento.trainer.model.Card
 import com.github.mlangc.memento.trainer.model.TrainingData
 import eu.timepit.refined.auto._
-import zio.console.Console
 import zio.App
 import zio.UIO
 import zio.ZEnv
 import zio.ZIO
 import zio.console
+import zio.console.Console
 
 
 object PrintBoxStats extends App {
@@ -27,8 +26,8 @@ object PrintBoxStats extends App {
 
   override def run(args: List[String]): ZIO[ZEnv, Nothing, Int] = {
     for {
-      config <- ZIO.fromEither(GsheetsCfg.load).orDieWith(errors => new IllegalArgumentException("" + errors))
-      db <- GsheetsVocabularyDb.make(config.sheetId, new File(config.credentialsPath))
+      config <- GsheetsCfg.load.orDieWith(errors => new IllegalArgumentException("" + errors))
+      db <- GsheetsVocabularyDb.make(config)
       trainingData <- db.load.map(TrainingData.convert)
       now <- UIO(Instant.now())
       maybeDeckState = NonEmptyVector.fromVector(trainingData.translations).map { translations =>

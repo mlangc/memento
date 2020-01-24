@@ -9,4 +9,7 @@ package object sheets {
 
   type CredentialsPathRefinement = NonEmpty
   type CredentialsPath = String Refined CredentialsPathRefinement
+
+  type TokensPathRefinement = NonEmpty
+  type TokensPath = String Refined TokensPathRefinement
 }

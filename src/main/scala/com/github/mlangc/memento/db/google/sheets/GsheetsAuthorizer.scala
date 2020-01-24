@@ -17,7 +17,7 @@ import zio.blocking.Blocking
 import zio.blocking.effectBlocking
 
 object GsheetsAuthorizer {
-  def authorize(secrets: File): RIO[Blocking, Credential] =
+  def authorize(secrets: File, tokensDir: File): RIO[Blocking, Credential] =
     GlobalJacksonFactory.get.zipPar(GlobalNetHttpTransport.get).flatMap { case (jacksonFactory, httpTransport) =>
       effectBlocking {
         val secretsIn = new FileInputStream(secrets)
@@ -26,7 +26,7 @@ object GsheetsAuthorizer {
           val scopes = Collections.singletonList(SheetsScopes.SPREADSHEETS)
 
           val flow = new GoogleAuthorizationCodeFlow.Builder(httpTransport, jacksonFactory, clientSecrets, scopes)
-            .setDataStoreFactory(new FileDataStoreFactory(new File("tokens")))
+            .setDataStoreFactory(new FileDataStoreFactory(tokensDir))
             .setAccessType("offline")
             .build()
 

@@ -13,6 +13,7 @@ import com.github.mlangc.slf4zio.api.LoggingSupport
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.model.ValueRange
+import eu.timepit.refined.auto._
 import eu.timepit.refined.refineV
 import zio.RIO
 import zio.Task
@@ -180,9 +181,11 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: String,
 }
 
 object GsheetsVocabularyDb {
-  def make(sheetId: String, secrets: File): RIO[Blocking, GsheetsVocabularyDb] =
+  def make(cfg: GsheetsCfg): RIO[Blocking, GsheetsVocabularyDb] = make(cfg.sheetId, new File(cfg.credentialsPath), new File(cfg.tokensPath))
+
+  def make(sheetId: String, secrets: File, tokensDir: File): RIO[Blocking, GsheetsVocabularyDb] =
     GlobalJacksonFactory.get.zipPar(GlobalNetHttpTransport.get).flatMap { case (jacksonFactory, httpTransport) =>
-      GsheetsAuthorizer.authorize(secrets).flatMap { credential =>
+      GsheetsAuthorizer.authorize(secrets, tokensDir).flatMap { credential =>
         ZIO.accessM[Blocking] { blockingModule =>
           blockingModule.blocking.effectBlocking {
             val service = new Sheets.Builder(httpTransport, jacksonFactory, credential)

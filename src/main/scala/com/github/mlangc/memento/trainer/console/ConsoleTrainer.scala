@@ -1,6 +1,5 @@
 package com.github.mlangc.memento.trainer.console
 
-import java.io.File
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
@@ -227,12 +226,13 @@ class ConsoleTrainer private(consoleMessages: ConsoleMessages,
 }
 
 object ConsoleTrainer extends App {
+
   private case object Reload
 
   def run(args: List[String]): ZIO[ZEnv, Nothing, Int] = {
     def tryTraining(sheetsCfg: GsheetsCfg): RIO[Blocking, Int] =
       for {
-        db <- GsheetsVocabularyDb.make(sheetsCfg.sheetId, new File(sheetsCfg.credentialsPath))
+        db <- GsheetsVocabularyDb.make(sheetsCfg)
         messages <- Messages.forDefaultLocale
         trainer <- make(messages.console, messages.motivator)
         _ <- trainer.train(db, new DefaultExaminer(new LeitnerRepetitionScheme))
@@ -246,7 +246,7 @@ object ConsoleTrainer extends App {
 
     if (args == List("--version")) showVersion
     else {
-      GsheetsCfg.load match {
+      GsheetsCfg.load.either.flatMap {
         case Left(configErrors) => handleConfigErrors(configErrors)
 
         case Right(sheetsCfg) => tryTraining(sheetsCfg).catchSome {

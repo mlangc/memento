@@ -2,6 +2,8 @@ package com.github.mlangc.memento.db.google.sheets
 
 import java.io.File
 
+import scala.util.control.NonFatal
+
 import cats.syntax.either._
 import ciris.ConfigError
 import ciris.ConfigErrors
@@ -11,20 +13,19 @@ import eu.timepit.refined.refineV
 import zio.IO
 import zio.ZIO
 
-import scala.util.control.NonFatal
-
 
 case class GsheetsCfg private(sheetId: SheetId,
-                              credentialsPath: CredentialsPath,
                               tokensPath: TokensPath)
 
 object GsheetsCfg {
-  def load: IO[ConfigErrors, GsheetsCfg] = ZIO.fromEither {
+  def load: IO[ConfigErrors, GsheetsCfg] =
+    load("SHEET_ID", "GOOGLE_TOKENS_PATH")
+
+  def load(sheetEnvVar: String, tokensPathEnvVar: String): IO[ConfigErrors, GsheetsCfg] = ZIO.fromEither {
     ciris.loadConfig(
-      ciris.env[SheetId]("SHEET_ID"),
-      ciris.env[CredentialsPath]("GOOGLE_CREDENTIALS_PATH"),
-      ciris.env[TokensPath]("GOOGLE_TOKENS_PATH").orElse(ciris.prop[String]("user.home").flatMapValue(defaultTokensPath))
-    )(GsheetsCfg(_, _, _)).result
+      ciris.env[SheetId](sheetEnvVar),
+      ciris.env[TokensPath](tokensPathEnvVar).orElse(ciris.prop[String]("user.home").flatMapValue(defaultTokensPath))
+    )(GsheetsCfg(_, _)).result
   }
 
   private def defaultTokensPath(userHome: String): Either[ConfigError, TokensPath] =

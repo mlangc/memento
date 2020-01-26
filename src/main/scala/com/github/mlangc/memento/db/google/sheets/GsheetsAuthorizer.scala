@@ -1,7 +1,6 @@
 package com.github.mlangc.memento.db.google.sheets
 
 import java.io.File
-import java.io.FileInputStream
 import java.io.InputStreamReader
 import java.util.Collections
 
@@ -17,10 +16,10 @@ import zio.blocking.Blocking
 import zio.blocking.effectBlocking
 
 object GsheetsAuthorizer {
-  def authorize(secrets: File, tokensDir: File): RIO[Blocking, Credential] =
+  def authorize(tokensDir: File): RIO[Blocking, Credential] =
     GlobalJacksonFactory.get.zipPar(GlobalNetHttpTransport.get).flatMap { case (jacksonFactory, httpTransport) =>
       effectBlocking {
-        val secretsIn = new FileInputStream(secrets)
+        val secretsIn = getClass.getResourceAsStream("/oauth-client-credentials.json")
         try {
           val clientSecrets = GoogleClientSecrets.load(jacksonFactory, new InputStreamReader(secretsIn))
           val scopes = Collections.singletonList(SheetsScopes.SPREADSHEETS)

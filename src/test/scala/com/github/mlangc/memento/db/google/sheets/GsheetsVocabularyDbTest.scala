@@ -15,20 +15,15 @@ import zio.blocking.Blocking
 @silent("inferred to be `Any`")
 class GsheetsVocabularyDbTest extends GenericVocabularyDbTest {
   private def testSheetIdVar = "TEST_SHEET_ID"
-  private def credentialsPathVar = "TEST_GOOGLE_CREDENTIALS_PATH"
   private def tokensPathVar = "TEST_TOKENS_PATH"
-
-  private lazy val sheetId = ciris.env[String](testSheetIdVar).value.getOrElse("")
-  private lazy val credentialsPath = ciris.env[String](credentialsPathVar).value.getOrElse("")
-  private lazy val tokensPath = ciris.env[String](tokensPathVar).value.getOrElse("")
 
   protected def db: Managed[Throwable, VocabularyDb] = {
     Managed.fromEffect {
-      Task {
-        assume(sheetId.nonEmpty, s"Please set $testSheetIdVar")
-        assume(credentialsPath.nonEmpty, s"Please set $credentialsPathVar")
-        assume(tokensPath.nonEmpty, s"Please set $tokensPathVar")
-      } *> GsheetsVocabularyDb.make(sheetId, new File(credentialsPath), new File(tokensPath)).provide(Blocking.Live)
+      GsheetsCfg.load(testSheetIdVar, tokensPathVar)
+        .catchAll(errors => Task(cancel(s"Error loading configuration: $errors")))
+        .flatMap { cfg =>
+          GsheetsVocabularyDb.make(cfg.sheetId, new File(cfg.tokensPath)).provide(Blocking.Live)
+        }
     }
   }
 

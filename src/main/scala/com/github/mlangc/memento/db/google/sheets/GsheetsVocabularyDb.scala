@@ -181,11 +181,11 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: String,
 }
 
 object GsheetsVocabularyDb {
-  def make(cfg: GsheetsCfg): RIO[Blocking, GsheetsVocabularyDb] = make(cfg.sheetId, new File(cfg.credentialsPath), new File(cfg.tokensPath))
+  def make(cfg: GsheetsCfg): RIO[Blocking, GsheetsVocabularyDb] = make(cfg.sheetId, new File(cfg.tokensPath))
 
-  def make(sheetId: String, secrets: File, tokensDir: File): RIO[Blocking, GsheetsVocabularyDb] =
+  def make(sheetId: String, tokensDir: File): RIO[Blocking, GsheetsVocabularyDb] =
     GlobalJacksonFactory.get.zipPar(GlobalNetHttpTransport.get).flatMap { case (jacksonFactory, httpTransport) =>
-      GsheetsAuthorizer.authorize(secrets, tokensDir).flatMap { credential =>
+      GsheetsAuthorizer.authorize(tokensDir).flatMap { credential =>
         ZIO.accessM[Blocking] { blockingModule =>
           blockingModule.blocking.effectBlocking {
             val service = new Sheets.Builder(httpTransport, jacksonFactory, credential)

@@ -10,6 +10,6 @@ import zio.blocking.Blocking
 trait GsheetsModule extends DbModule {
   def secretsFile: File
   def tokensDir: File
-  def vocabularyDb(sheetId: String): Task[VocabularyDb] = GsheetsVocabularyDb.make(sheetId, secretsFile, tokensDir).provide(Blocking.Live)
+  def vocabularyDb(sheetId: String): Task[VocabularyDb] = GsheetsVocabularyDb.make(sheetId, tokensDir).provide(Blocking.Live)
 }
 

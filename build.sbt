@@ -72,6 +72,7 @@ val log4jVersion = "2.13.0"
 libraryDependencies += "dev.zio" %% "zio-interop-cats" % "2.0.0.0-RC7"
 libraryDependencies += "com.google.oauth-client" % "google-oauth-client-jetty" % "1.29.2"
 libraryDependencies += "com.google.apis" % "google-api-services-sheets" % "v4-rev579-1.25.0"
+libraryDependencies += "com.google.apis" % "google-api-services-drive" % "v3-rev188-1.25.0" % Test
 
 libraryDependencies += "org.typelevel" %% "cats-core" % catsVersion
 libraryDependencies += "org.typelevel" %% "cats-effect" % "2.0.0"

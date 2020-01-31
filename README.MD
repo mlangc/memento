@@ -19,11 +19,6 @@ if one of your languages is 'French', than you should have a tab named 'Synonyms
 Last but not least, enter some vocabulary and eventually synonyms, and feel free to change the title of the sheet
 to whatever you want.
 
-### Enable the Google Sheets API
-Go to [https://developers.google.com/sheets/api/quickstart/java]() and scroll down to the blue button
-'ENABLE TO GOOGLE SHEETS API'. In the resulting dialog, click 'DOWNLOAD CLIENT CONFIGURATION', and safe
-it under `memento-gsheets-credentials.json`. 
-
 ### Install and configure Memento
 Download Memento, and create a launch script like this:
 
@@ -31,8 +26,7 @@ Download Memento, and create a launch script like this:
 #!/usr/bin/env bash
 
 export SHEET_ID=put-your-sheet-id-here
-export GOOGLE_CREDENTIALS_PATH=put-your-credentials-path-here
-./memento-0.1.0
+./memento-0.2.1
 ```
 
 You can find the sheet ID of your Google Sheet by opening the sheet in your browser and inspecting the URL.

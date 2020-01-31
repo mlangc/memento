@@ -184,23 +184,13 @@ object GsheetsVocabularyDb {
   def make(cfg: GsheetsCfg): RIO[Blocking, GsheetsVocabularyDb] = make(cfg.sheetId, new File(cfg.tokensPath))
 
   def make(sheetId: String, tokensDir: File): RIO[Blocking, GsheetsVocabularyDb] =
-    GlobalJacksonFactory.get.zipPar(GlobalNetHttpTransport.get).flatMap { case (jacksonFactory, httpTransport) =>
-      GsheetsAuthorizer.authorize(tokensDir).flatMap { credential =>
-        ZIO.accessM[Blocking] { blockingModule =>
-          blockingModule.blocking.effectBlocking {
-            val service = new Sheets.Builder(httpTransport, jacksonFactory, credential)
-              .setApplicationName("memento")
-              .build()
+    GsheetsService.make(tokensDir).flatMap { service =>
+      ZIO.access[Blocking](blocking => new GsheetsVocabularyDb(sheetId, service, blocking))
+    }.mapError {
+      case fnf: FileNotFoundException =>
+        new ErrorMessage(s"Please verify your configuration:\n  ${fnf.getMessage}", fnf)
 
-            new GsheetsVocabularyDb(sheetId, service, blockingModule)
-          }.mapError {
-            case fnf: FileNotFoundException =>
-              new ErrorMessage(s"Please verify your configuration:\n  ${fnf.getMessage}", fnf)
-
-            case e => e
-          }
-        }
-      }
+      case e => e
     }
 }
 

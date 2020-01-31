@@ -1,21 +1,13 @@
 package com.github.mlangc.memento.db.google.sheets
 
-import com.github.mlangc.memento.BaseZioTest
-import com.github.mlangc.memento.TestCfg
-import zio.RIO
+import com.github.mlangc.memento.db.google.BaseGapiTest
 import zio.Task
-import zio.system.System
+import zio.ZIO
 
-class GsheetsTestHelpersTest extends BaseZioTest {
-  private def testSheetIdEnvVar = "TEST_SHEET_ID"
-
-  private def testSheetsId: RIO[System, SheetId] =
-    TestCfg.sheetId(testSheetIdEnvVar)
-      .catchAll(errors => Task(cancel(s"Unable to load sheet id from $testSheetIdEnvVar: $errors")))
-
+class GsheetsTestHelpersTest extends BaseGapiTest {
   "Copy - delete" inIO {
     for {
-      id0 <- testSheetsId
+      id0 <- ZIO.succeed(TestSheetIds.Simple)
       id1 <- GsheetsTestHelpers.copy(id0)
       _ <- GsheetsTestHelpers.delete(id1)
       v1 <- GsheetsTestHelpers.delete(id1).either

@@ -2,17 +2,16 @@ package com.github.mlangc.memento.db
 
 import java.time.Instant
 
-import com.github.mlangc.memento.BaseZioTest
+import com.github.mlangc.memento.db.google.BaseGapiTest
 import com.github.mlangc.memento.db.model.Check
 import com.github.mlangc.memento.db.model.Direction
 import com.github.mlangc.memento.db.model.Score
 import com.github.mlangc.memento.db.model.Translation
+import eu.timepit.refined.auto._
 import zio.Managed
 import zio.Task
 
-import eu.timepit.refined.auto._
-
-abstract class GenericVocabularyDbTest extends BaseZioTest {
+abstract class GenericVocabularyDbTest extends BaseGapiTest {
   protected def db: Managed[Throwable, VocabularyDb]
 
   "Make sure that our DB behaves sane" inIO {

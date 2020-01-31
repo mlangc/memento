@@ -7,10 +7,10 @@ import java.util
 import java.util.Collections
 
 import com.github.mlangc.memento.db.VocabularyDb
+import com.github.mlangc.memento.db.google.sheets.GsheetsUtils.ValuesOps
 import com.github.mlangc.memento.db.model._
 import com.github.mlangc.memento.errors.ErrorMessage
 import com.github.mlangc.slf4zio.api.LoggingSupport
-import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.model.ValueRange
 import eu.timepit.refined.auto._
@@ -34,25 +34,8 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: String,
   def load: Task[VocabularyData] = {
     for {
       sheetValues <- Task(sheets.spreadsheets().values())
+      getRawValues = (range: String) => sheetValues.getRawValues(sheetId, range).provide(blockingModule)
       data <- {
-        def getRawValues(range: String): Task[Iterable[util.List[AnyRef]]] = effectBlocking {
-          try {
-            Option(sheetValues.get(sheetId, range).execute().getValues.asScala)
-              .getOrElse(Iterable.empty)
-          } catch {
-            case gre: GoogleJsonResponseException =>
-              val checkMsg = {
-                if (gre.getDetails.getCode == 404) "Please check your configuration"
-                else "Please verify that your sheet is properly structured"
-              }
-
-              val errTitle = s"""Error loading range "$range" from sheet $sheetId"""
-              val errMsg = s"${gre.getStatusCode} - ${gre.getStatusMessage}"
-
-              throw new ErrorMessage(s"$errTitle\n$errMsg\n$checkMsg", gre)
-          }
-        }.logDebugPerformance(d => s"grabbing values for '$range' took ${d.toMillis}ms", 20.millis)
-
         def cellToStr(cell: AnyRef): Option[String] = {
           Option(cell).map(_.toString.trim)
         }

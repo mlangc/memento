@@ -1,16 +1,17 @@
 package com.github.mlangc.memento.db.google.sheets
 
-import ciris.refined._
 import com.github.mlangc.memento.BaseZioTest
+import com.github.mlangc.memento.TestCfg
+import zio.RIO
 import zio.Task
-import zio.ZIO
+import zio.system.System
 
 class GsheetsTestHelpersTest extends BaseZioTest {
   private def testSheetIdEnvVar = "TEST_SHEET_ID"
 
-  private def testSheetsId: Task[SheetId] =
-    ZIO.fromEither(ciris.env[SheetId](testSheetIdEnvVar).result)
-        .catchAll(errors => Task(cancel(s"Unable to load sheet id from $testSheetIdEnvVar: $errors")))
+  private def testSheetsId: RIO[System, SheetId] =
+    TestCfg.sheetId(testSheetIdEnvVar)
+      .catchAll(errors => Task(cancel(s"Unable to load sheet id from $testSheetIdEnvVar: $errors")))
 
   "Copy - delete" inIO {
     for {

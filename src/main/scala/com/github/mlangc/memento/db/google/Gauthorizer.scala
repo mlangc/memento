@@ -16,6 +16,7 @@ import zio.blocking.Blocking
 import zio.blocking.effectBlocking
 
 import scala.jdk.CollectionConverters._
+import com.roundeights.hasher.Implicits._
 
 
 private object Gauthorizer {
@@ -32,7 +33,9 @@ private object Gauthorizer {
 
         try {
           val clientSecrets = GoogleClientSecrets.load(jacksonFactory, new InputStreamReader(secretsIn))
-          val scopesList: util.List[String] = (Array(scope) ++ scopes.toArray).toSeq.asJava
+          val scopesSeq = (Array(scope) ++ scopes.toArray).toSeq.sorted
+          val scopesList: util.List[String] = scopesSeq.asJava
+          val id = scopesSeq.map(_.sha1.hex).mkString(", ").sha1.hex
 
           val flow = new GoogleAuthorizationCodeFlow.Builder(httpTransport, jacksonFactory, clientSecrets, scopesList)
             .setDataStoreFactory(new FileDataStoreFactory(tokensDir))
@@ -40,7 +43,7 @@ private object Gauthorizer {
             .build()
 
           val receiver = new LocalServerReceiver.Builder().setPort(-1).build()
-          new AuthorizationCodeInstalledApp(flow, receiver).authorize("user")
+          new AuthorizationCodeInstalledApp(flow, receiver).authorize(id)
         } finally {
           secretsIn.close()
         }

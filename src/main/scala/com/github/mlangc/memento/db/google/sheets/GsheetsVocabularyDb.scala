@@ -93,7 +93,7 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: SheetId,
         val checksRange = "Checks!A2:E"
         val checksValues = getRawValues(checksRange)
 
-        def synonmRanges(langNames: (LanguageName, LanguageName)): (String, String) = langNames match {
+        def synonymRanges(langNames: (LanguageName, LanguageName)): (String, String) = langNames match {
           case (language1, language2) =>
             val synonyms1Range = s"'Synonyms $language1'!A2:B"
             val synonyms2Range = s"'Synonyms $language2'!A2:B"
@@ -156,7 +156,7 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: SheetId,
           _ <- logger.debugIO(s"Sheet $sheetId has schema version $schemaVersion")
           _ <- eventuallyMigrate(schemaVersion)
           langNamesChecksTranslations <- zip3Par(langNames, checks, translations)
-          synRanges = synonmRanges(langNamesChecksTranslations._1)
+          synRanges = synonymRanges(langNamesChecksTranslations._1)
           synonyms <- getSynonymValues(synRanges._1).zipPar(getSynonymValues(synRanges._2))
         } yield {
           VocabularyData(

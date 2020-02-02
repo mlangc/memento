@@ -3,14 +3,13 @@ import java.io.File
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 
+import eu.timepit.refined.refineV
 import org.apache.commons.io.FileUtils
 import zio.Ref
 import zio.Task
 import zio.ZIO
 import zio.ZManaged
 import zio.blocking.Blocking
-
-import eu.timepit.refined.refineV
 
 class SimpleOnDiskCache private (cacheDir: File, blocking: Blocking.Service[Any], usedRef: Ref[Set[CacheKey]]) extends SimpleCache {
   import blocking._
@@ -90,6 +89,7 @@ object SimpleOnDiskCache {
     for {
       blocking <- ZIO.access[Blocking](identity)
       usedRef <- Ref.make(Set.empty[CacheKey])
+      _ <- ZIO.whenM(Task(!cacheDir.exists()))(Task(FileUtils.forceMkdir(cacheDir)))
     } yield new SimpleOnDiskCache(cacheDir, blocking.blocking, usedRef)
   }.toManaged_
 }

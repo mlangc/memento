@@ -14,6 +14,7 @@ import zio.RIO
 import zio.Task
 import zio.ZManaged
 import zio.blocking.Blocking
+import zio.clock.Clock
 import zio.system.System
 
 
@@ -37,8 +38,8 @@ class GsheetsVocabularyDbTest extends GenericVocabularyDbTest {
   }
 
   "Verify that old sheets are migrated correctly" - {
-    def checkMigration(sheetId: SheetId, expectedShas: String*): RIO[Blocking with System, Unit] = {
-      val tmpCopy: ZManaged[Blocking, Throwable, SheetId] =
+    def checkMigration(sheetId: SheetId, expectedShas: String*): RIO[Blocking with Clock with System, Unit] = {
+      val tmpCopy: ZManaged[Blocking with Clock, Throwable, SheetId] =
         GsheetsTestHelpers.tmpCopy(sheetId)
 
       tmpCopy.use { sheetId =>

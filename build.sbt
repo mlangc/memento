@@ -68,6 +68,7 @@ val zioVersion = "1.0.0-RC16"
 val refinedVersion = "0.9.10"
 val silencerVersion = "1.4.4"
 val log4jVersion = "2.13.0"
+val circeVersion = "0.12.3"
 
 libraryDependencies += "dev.zio" %% "zio-interop-cats" % "2.0.0.0-RC7"
 libraryDependencies += "com.google.oauth-client" % "google-oauth-client-jetty" % "1.29.2"
@@ -76,6 +77,10 @@ libraryDependencies += "com.google.apis" % "google-api-services-drive" % "v3-rev
 
 libraryDependencies += "org.typelevel" %% "cats-core" % catsVersion
 libraryDependencies += "org.typelevel" %% "cats-effect" % "2.0.0"
+
+libraryDependencies += "io.circe" %% "circe-refined" % circeVersion
+libraryDependencies += "io.circe" %% "circe-generic" % circeVersion
+libraryDependencies += "io.circe" %% "circe-parser" % circeVersion
 
 libraryDependencies ++= Seq(
   "eu.timepit" %% "refined" % refinedVersion,

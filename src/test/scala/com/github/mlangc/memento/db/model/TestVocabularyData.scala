@@ -1,7 +1,5 @@
 package com.github.mlangc.memento.db.model
 
-import java.time.Instant
-
 import eu.timepit.refined.auto._
 
 object TestVocabularyData {
@@ -21,8 +19,6 @@ object TestVocabularyData {
       Translation("Abrechnung", "un décompte") ::
       Nil,
 
-    checks = Check(Translation("ich", "je"), Direction.LeftToRight, Score.Perfect, Instant.EPOCH) ::
-      Check(Translation("verbreitet", "répandu"), Direction.LeftToRight, Score.Perfect, Instant.EPOCH) ::
-      Nil
+    checks = TestChecks.IchJe :: TestChecks.VerbreitetRepandu :: Nil
   )
 }

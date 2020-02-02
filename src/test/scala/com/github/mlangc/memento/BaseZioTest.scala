@@ -2,11 +2,11 @@ package com.github.mlangc.memento
 
 import org.scalactic.source.Position
 import org.scalatest.exceptions.TestCanceledException
-import zio.Cause
-import zio.FiberFailure
-import zio.ZEnv
 import zio.DefaultRuntime
+import zio.Exit
+import zio.FiberFailure
 import zio.Task
+import zio.ZEnv
 import zio.ZIO
 
 abstract class BaseZioTest extends BaseTest with DefaultRuntime {
@@ -15,10 +15,13 @@ abstract class BaseZioTest extends BaseTest with DefaultRuntime {
 
     def inIO[E, A](zio: ZIO[ZEnv, E, A]): Unit = {
       impl.in {
-        unsafeRun(zio.either) match {
-          case Right(_) => ()
-          case Left(th: Throwable) => throw th
-          case Left(other) => throw new FiberFailure(Cause.fail(other))
+        unsafeRun(zio.run) match {
+          case Exit.Success(_) => ()
+          case Exit.Failure(cause) =>
+            cause.failureOption match {
+              case Some(e: TestCanceledException) => throw e
+              case _ => throw FiberFailure(cause)
+            }
         }
       }
     }

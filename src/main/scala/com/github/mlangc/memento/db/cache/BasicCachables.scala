@@ -7,6 +7,7 @@ import java.nio.charset.CodingErrorAction
 import java.nio.charset.StandardCharsets
 
 import cats.syntax.either._
+import com.github.mlangc.memento.db.model.Check
 
 trait BasicCachables {
   implicit val stringCachable: Cachable[String] = new Cachable[String] {
@@ -53,7 +54,18 @@ trait BasicCachables {
       else ByteBuffer.wrap(bytes).getInt(0).asRight
   }
 
+  implicit val checksCachable: Cachable[Iterable[Check]] = new Cachable[Iterable[Check]] {
+    import io.circe.generic.auto._, io.circe.parser._, io.circe.syntax._, io.circe.refined._
 
+    def toBytes(checks: Iterable[Check]): Array[Byte] =
+      checks.asJson.spaces2.getBytes(StandardCharsets.UTF_8)
+
+    def fromBytes(bytes: Array[Byte]): Either[IllegalArgumentException, Iterable[Check]] =
+      for {
+        json <- parse(new String(bytes, StandardCharsets.UTF_8)).leftMap(new IllegalArgumentException("Parse error", _))
+        checks <- json.as[Iterable[Check]].leftMap(new IllegalArgumentException("Decoding error", _))
+      } yield checks
+  }
 }
 
 object BasicCachables extends BasicCachables

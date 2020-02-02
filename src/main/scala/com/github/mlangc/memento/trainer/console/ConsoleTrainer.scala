@@ -10,6 +10,7 @@ import cats.syntax.eq._
 import ciris.ConfigErrors
 import com.github.difflib.text.DiffRowGenerator
 import com.github.mlangc.memento.db.VocabularyDb
+import com.github.mlangc.memento.db.cache.CacheModule
 import com.github.mlangc.memento.db.google.sheets.GsheetsCfg
 import com.github.mlangc.memento.db.google.sheets.GsheetsVocabularyDb
 import com.github.mlangc.memento.db.model.Direction
@@ -230,7 +231,7 @@ object ConsoleTrainer extends App {
   private case object Reload
 
   def run(args: List[String]): ZIO[ZEnv, Nothing, Int] = {
-    def tryTraining(sheetsCfg: GsheetsCfg): RIO[Blocking, Int] =
+    def tryTraining(sheetsCfg: GsheetsCfg): RIO[Blocking with CacheModule, Int] =
       for {
         db <- GsheetsVocabularyDb.make(sheetsCfg)
         messages <- Messages.forDefaultLocale
@@ -255,7 +256,7 @@ object ConsoleTrainer extends App {
         }.orDie
       }
     }
-  }
+  }.provide(new Console.Live with Blocking.Live with CacheModule.Live {})
 
   def make(consoleMessages: ConsoleMessages, motivatorMessages: MotivatorMessages): UIO[ConsoleTrainer] =
     for {

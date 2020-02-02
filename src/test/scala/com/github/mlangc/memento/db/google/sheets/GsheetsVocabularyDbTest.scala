@@ -7,6 +7,7 @@ import com.github.mlangc.memento.db.VocabularyDb
 import com.github.mlangc.memento.db.google.sheets.GsheetsUtils.ValuesOps
 import com.github.mlangc.memento.db.model.Synonym
 import com.github.mlangc.memento.db.model.Translation
+import com.github.mlangc.memento.zenvs.ZEnvs
 import eu.timepit.refined.auto._
 import zio.Managed
 import zio.RIO
@@ -126,5 +127,5 @@ class GsheetsVocabularyDbTest extends GenericVocabularyDbTest {
   private def initDb(sheetId: SheetId): Task[GsheetsVocabularyDb] =
     TestCfg.tokensDir.zip(TestCfg.cacheDir).flatMap { case (tokensDir, cacheDir) =>
       GsheetsVocabularyDb.make(sheetId, tokensDir, cacheDir)
-    }.provide(new Blocking.Live with System.Live {})
+    }.provide(ZEnvs.live)
 }

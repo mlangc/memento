@@ -8,6 +8,7 @@ import java.util.Collections
 
 import com.github.ghik.silencer.silent
 import com.github.mlangc.memento.db.VocabularyDb
+import com.github.mlangc.memento.db.cache.CacheModule
 import com.github.mlangc.memento.db.google.sheets.GsheetsUtils.SpreadsheetsOps
 import com.github.mlangc.memento.db.google.sheets.GsheetsUtils.ValuesOps
 import com.github.mlangc.memento.db.google.sheets.GsheetsVocabularyDb.rowToValueRange
@@ -35,7 +36,7 @@ import scala.util.Try
 private[sheets] class GsheetsVocabularyDb private(sheetId: SheetId,
                                                   @silent("never used") cacheDir: File,
                                                   sheets: Sheets,
-                                                  blockingModule: Blocking)
+                                                  modules: Blocking with CacheModule)
   extends VocabularyDb with LoggingSupport {
 
   private val checksHashFormula = GsheetsVocabularyDb.tableHashFormula("A", "E", 1, 100)
@@ -44,7 +45,7 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: SheetId,
     for {
       spreadsheets <- Task(sheets.spreadsheets())
       sheetValues <- Task(spreadsheets.values())
-      getRawValues = (range: String) => sheetValues.getRawValues(sheetId, range).provide(blockingModule)
+      getRawValues = (range: String) => sheetValues.getRawValues(sheetId, range).provide(modules)
       data <- {
         def cellToStr(cell: AnyRef): Option[String] = {
           Option(cell).map(_.toString.trim)
@@ -168,7 +169,7 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: SheetId,
         }
       }
     } yield data
-    }.logDebugPerformance(d => s"Loading sheet took ${d.toMillis}ms", 100.millis).provide(blockingModule)
+    }.logDebugPerformance(d => s"Loading sheet took ${d.toMillis}ms", 100.millis).provide(modules)
 
   def addCheck(check: Check): Task[Unit] =
     effectBlocking {
@@ -186,7 +187,7 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: SheetId,
           .setValueInputOption("USER_ENTERED")
           .execute()
       }
-    }.unit.provide(blockingModule)
+    }.unit.provide(modules)
 
   private def zip3Par[A, B, C](a: Task[A], b: Task[B], c: Task[C]): Task[(A, B, C)] =
     a.zipPar(b).zipWithPar(c) { case ((a, b), c) => (a, b, c) }
@@ -194,12 +195,12 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: SheetId,
 }
 
 object GsheetsVocabularyDb {
-  def make(cfg: GsheetsCfg): RIO[Blocking, GsheetsVocabularyDb] =
+  def make(cfg: GsheetsCfg): RIO[CacheModule with Blocking, GsheetsVocabularyDb] =
     make(cfg.sheetId, new File(cfg.tokensPath), cacheDirFor(cfg.cachePath, cfg.sheetId))
 
-  def make(sheetId: SheetId, tokensDir: File, cacheDir: File): RIO[Blocking, GsheetsVocabularyDb] =
+  def make(sheetId: SheetId, tokensDir: File, cacheDir: File): RIO[CacheModule with Blocking, GsheetsVocabularyDb] =
     GsheetsService.make(tokensDir).flatMap { service =>
-      ZIO.access[Blocking](blocking => new GsheetsVocabularyDb(sheetId, cacheDir, service, blocking))
+      ZIO.access[Blocking with CacheModule](modules => new GsheetsVocabularyDb(sheetId, cacheDir, service, modules))
     }.mapError {
       case fnf: FileNotFoundException =>
         new ErrorMessage(s"Please verify your configuration:\n  ${fnf.getMessage}", fnf)

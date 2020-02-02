@@ -11,6 +11,7 @@ import com.github.mlangc.memento.db.model.Direction.LeftToRight
 import com.github.mlangc.memento.db.model.Direction.RightToLeft
 import com.github.mlangc.memento.trainer.model.Card
 import com.github.mlangc.memento.trainer.model.TrainingData
+import com.github.mlangc.memento.zenvs.ZEnvs
 import eu.timepit.refined.auto._
 import zio.App
 import zio.UIO
@@ -42,7 +43,7 @@ object PrintBoxStats extends App {
         case None => console.putStrLn("No translations - nothing to do")
       }
     } yield 0
-    }.orDie
+    }.orDie.provide(ZEnvs.live)
 
   private def prettyPrint(deckState: DeckState): ZIO[Console, Nothing, Unit] =
     console.putStrLn(render(deckState))

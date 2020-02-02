@@ -3,7 +3,6 @@ package com.github.mlangc.memento.db.google.sheets
 import java.io.File
 
 import cats.syntax.option._
-import com.github.ghik.silencer.silent
 import com.github.mlangc.memento.db.google.Gauthorizer
 import com.github.mlangc.memento.db.google.drive.GdriveService
 import com.github.mlangc.memento.util.zio.ZioUtils
@@ -38,6 +37,19 @@ private[sheets] object GsheetsTestHelpers extends LoggingSupport {
   def delete(id: SheetId): RIO[Blocking, Unit] =
     effectWithDrive(_.files().delete(id).execute()).unit
 
+  def effectWithDrive[A](effect: Drive => A): RIO[Blocking, A] =
+    sheetsAndDrive.flatMap { case (_, drive) => effectBlocking(effect(drive)) }
+
+  def effectWithSheets[A](effect: Sheets => A): RIO[Blocking, A] =
+    sheetsAndDrive.flatMap { case (sheets, _) => effectBlocking(effect(sheets)) }
+
+  def effectWithSheetsAndDrive[A](effect: (Sheets, Drive) => A): RIO[Blocking, A] = {
+    sheetsAndDrive.flatMap(args => effectBlocking(effect.tupled(args)))
+  }
+
+  def withSheets[R, E, A](f: Sheets => RIO[R, A]): RIO[R with Blocking, A] =
+    sheetsAndDrive.flatMap { case (sheets, _) => f(sheets) }
+
   private val sheetsAndDrive: RIO[Blocking, (Sheets, Drive)] = {
     val loadSheets: RIO[Blocking, (Sheets, Drive)] =
       GsheetsCfg.loadDefaultTokensPath.flatMap { path =>
@@ -51,17 +63,5 @@ private[sheets] object GsheetsTestHelpers extends LoggingSupport {
     val get = UIO(cache)
 
     ZioUtils.cached(loadSheets)(get, set)
-  }
-
-  private def effectWithDrive[A](effect: Drive => A): RIO[Blocking, A] =
-    sheetsAndDrive.flatMap { case (_, drive) => effectBlocking(effect(drive)) }
-
-  @silent("never used")
-  private def effectWithSheets[A](effect: Sheets => A): RIO[Blocking, A] =
-    sheetsAndDrive.flatMap { case (sheets, _) => effectBlocking(effect(sheets)) }
-
-  @silent("never used")
-  private def effectWithSheetsAndDrive[A](effect: (Sheets, Drive) => A): RIO[Blocking, A] = {
-    sheetsAndDrive.flatMap(args => effectBlocking(effect.tupled(args)))
   }
 }

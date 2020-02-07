@@ -32,6 +32,7 @@ import com.github.mlangc.memento.trainer.model.Question
 import com.github.mlangc.memento.trainer.model.TechnicalIssue
 import com.github.mlangc.memento.trainer.repetition.leitner.LeitnerRepetitionScheme
 import com.github.mlangc.memento.util.VersionInfo
+import com.github.mlangc.memento.zenvs.ZEnvs
 import com.github.mlangc.slf4zio.api.LoggingSupport
 import eu.timepit.refined.auto._
 import org.fusesource.jansi.Ansi.ansi
@@ -39,6 +40,7 @@ import org.fusesource.jansi.AnsiConsole.out.println
 import org.jline.reader.LineReaderBuilder
 import zio._
 import zio.blocking.Blocking
+import zio.clock.Clock
 import zio.console.Console
 
 import scala.io.StdIn
@@ -231,7 +233,7 @@ object ConsoleTrainer extends App {
   private case object Reload
 
   def run(args: List[String]): ZIO[ZEnv, Nothing, Int] = {
-    def tryTraining(sheetsCfg: GsheetsCfg): RIO[Blocking with CacheModule, Int] =
+    def tryTraining(sheetsCfg: GsheetsCfg): RIO[Blocking with CacheModule with Clock, Int] =
       for {
         db <- GsheetsVocabularyDb.make(sheetsCfg)
         messages <- Messages.forDefaultLocale
@@ -256,7 +258,7 @@ object ConsoleTrainer extends App {
         }.orDie
       }
     }
-  }.provide(new Console.Live with Blocking.Live with CacheModule.Live {})
+  }.provide(ZEnvs.live)
 
   def make(consoleMessages: ConsoleMessages, motivatorMessages: MotivatorMessages): UIO[ConsoleTrainer] =
     for {

@@ -18,4 +18,10 @@ object ZioUtils {
     def apply[A](a: A)(implicit validate: Validate[A, P]): IO[RefinementError, A Refined P] =
       ZIO.fromEither(refineV[P](a)).mapError(msg => RefinementError(a, msg))
   }
+
+  def accumulateWhile[R, E, A, B](a0: A, b0: B)(combine: (B, B) => B)(h: A => ZIO[R, E, (Option[A], B)]): ZIO[R, E, B] =
+    h(a0).flatMap {
+      case (None, b) => ZIO.succeed(combine(b0, b))
+      case (Some(a), b) => accumulateWhile(a, combine(b0, b))(combine)(h)
+    }
 }

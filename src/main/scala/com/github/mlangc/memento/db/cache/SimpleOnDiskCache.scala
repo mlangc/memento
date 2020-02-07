@@ -5,6 +5,7 @@ import java.nio.file.StandardCopyOption
 
 import eu.timepit.refined.refineV
 import org.apache.commons.io.FileUtils
+import zio.RIO
 import zio.Ref
 import zio.Task
 import zio.ZIO
@@ -14,14 +15,14 @@ import zio.blocking.Blocking
 class SimpleOnDiskCache private (cacheDir: File, blocking: Blocking.Service[Any], usedRef: Ref[Set[CacheKey]]) extends SimpleCache {
   import blocking._
 
-  def load[K: Keyable, A: Cachable](k: K)(f: K => Task[A]): Task[A] = {
+  def load[R, K: Keyable, A: Cachable](k: K)(f: K => RIO[R, A]): RIO[R, A] = {
     val keyable = implicitly[Keyable[K]]
     val cacheable = implicitly[Cachable[A]]
 
     val key = keyable.toKey(k)
     val cacheFile = cacheFileFor(key)
 
-    def loadAndCache: Task[A] =
+    def loadAndCache: RIO[R, A] =
       for {
         a <- f(k)
         bytes = cacheable.toBytes(a)

@@ -5,21 +5,22 @@ import java.net.SocketTimeoutException
 import com.github.mlangc.slf4zio.api._
 import com.google.api.client.http.HttpResponseException
 import zio.Schedule
+import zio.UIO
 import zio.ZIO
 import zio.ZSchedule
 import zio.clock.Clock
 import zio.duration.durationInt
 
 object RetrySchedules extends LoggingSupport{
-  val gapiCall: ZSchedule[Clock, Throwable, Throwable] =
-    Schedule.doWhileM(shouldRetry) <* ZSchedule.exponential(500.millis) <* Schedule.recurs(6)
+  def gapiCall(retryStrategy: Throwable => UIO[Boolean] = _ => ZIO.succeed(false)): ZSchedule[Clock, Throwable, Throwable] =
+    Schedule.doWhileM(shouldRetry(retryStrategy)) <* (ZSchedule.exponential(125.millis) || ZSchedule.spaced(2.seconds)) <* Schedule.recurs(8)
 
-  private def shouldRetry(th: Throwable) = th match {
+  private def shouldRetry(retryStrategy: Throwable => UIO[Boolean])(th: Throwable) = th match {
     case e: HttpResponseException if e.getStatusCode == 429 =>
-      logger.warnIO("Quota exceeded while loading values", e).as(true)
+      logger.warnIO("Google API quota exceeded", e).as(true)
     case e: SocketTimeoutException =>
-      logger.warnIO("Timeout while loading values", e).as(true)
+      logger.warnIO("Timeout when interacting with Google APIs", e).as(true)
 
-    case _ => ZIO.succeed(false)
+    case th => retryStrategy(th)
   }
 }

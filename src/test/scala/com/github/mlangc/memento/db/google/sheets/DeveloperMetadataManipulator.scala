@@ -12,7 +12,7 @@ import zio.blocking.Blocking
 object DeveloperMetadataManipulator extends App with LoggingSupport {
 
   object cfg {
-    val targetSheetId: SheetId = TestSheetIds.Simple
+    val targetSheetId: SheetId = "1Dg3Mayy-qw2tTjAjFmU4emeYFa_4ebUfIFPNRQxQpV8"
     val schemaVersionToSet: Option[SchemaVersion] = None
   }
 

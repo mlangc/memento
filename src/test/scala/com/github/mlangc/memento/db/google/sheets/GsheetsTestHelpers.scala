@@ -3,6 +3,8 @@ package com.github.mlangc.memento.db.google.sheets
 import java.io.File
 
 import cats.syntax.option._
+import com.github.mlangc.memento.TestCfg
+import com.github.mlangc.memento.db.cache.CacheModule
 import com.github.mlangc.memento.db.google.Gauthorizer
 import com.github.mlangc.memento.db.google.RetrySchedules
 import com.github.mlangc.memento.db.google.drive.GdriveService
@@ -20,6 +22,7 @@ import zio.ZManaged
 import zio.blocking.Blocking
 import zio.blocking.effectBlocking
 import zio.clock.Clock
+import zio.system.System
 
 
 private[sheets] object GsheetsTestHelpers extends LoggingSupport {
@@ -31,13 +34,13 @@ private[sheets] object GsheetsTestHelpers extends LoggingSupport {
       val file = drive.files().copy(id, new model.File()).execute()
       refineV[SheetIdRefinement](file.getId)
         .getOrElse(throw new RuntimeException(file.getId))
-    }.retry(RetrySchedules.gapiCall)
+    }.retry(RetrySchedules.gapiCall())
 
   def tmpCopy(id: SheetId): ZManaged[Blocking with Clock, Throwable, SheetId] =
     copy(id).toManaged(id => delete(id).catchAll(e => logger.errorIO(s"Error deleting sheet $id", e)))
 
   def delete(id: SheetId): RIO[Blocking with Clock, Unit] =
-    effectWithDrive(_.files().delete(id).execute()).unit.retry(RetrySchedules.gapiCall)
+    effectWithDrive(_.files().delete(id).execute()).unit.retry(RetrySchedules.gapiCall())
 
   def effectWithDrive[A](effect: Drive => A): RIO[Blocking, A] =
     sheetsAndDrive.flatMap { case (_, drive) => effectBlocking(effect(drive)) }
@@ -51,6 +54,11 @@ private[sheets] object GsheetsTestHelpers extends LoggingSupport {
 
   def withSheets[R, E, A](f: Sheets => RIO[R, A]): RIO[R with Blocking, A] =
     sheetsAndDrive.flatMap { case (sheets, _) => f(sheets) }
+
+  def initDb(sheetId: SheetId): RIO[CacheModule with Blocking with System with Clock, GsheetsVocabularyDb] =
+    TestCfg.tokensDir.zip(TestCfg.cacheDir).flatMap { case (tokensDir, cacheDir) =>
+      GsheetsVocabularyDb.make(sheetId, tokensDir, cacheDir)
+    }
 
   private val sheetsAndDrive: RIO[Blocking, (Sheets, Drive)] = {
     val loadSheets: RIO[Blocking, (Sheets, Drive)] =

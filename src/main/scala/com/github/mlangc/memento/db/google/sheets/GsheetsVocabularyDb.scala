@@ -33,6 +33,11 @@ import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
 import scala.util.Try
 import com.github.mlangc.memento.db.cache.BasicCachables.checksCachable
+import com.github.mlangc.memento.db.google.RetrySchedules
+import com.github.mlangc.memento.util.zio.RefinementError
+import com.github.mlangc.memento.util.zio.ZioUtils
+import zio.Schedule
+import zio.clock.Clock
 
 private[sheets] class GsheetsVocabularyDb private(sheetId: SheetId,
                                                   @silent("never used") cacheDir: File,
@@ -40,7 +45,8 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: SheetId,
                                                   modules: Blocking with CacheModule)
   extends VocabularyDb with LoggingSupport {
 
-  private val checksHashFormula = GsheetsVocabularyDb.tableHashFormula("A", "E", 1, 100)
+  private def hashRows: Int Refined Positive = 100
+  private val checksHashFormula = GsheetsVocabularyDb.tableHashFormula("A", "E", 1, hashRows)
 
   def load: Task[VocabularyData] =
     modules.makeSimpleCache(cacheDir).use { simpleCache =>
@@ -97,20 +103,30 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: SheetId,
           val translationValues = getRawValues(translationsRange)
 
           val checksHashesRange = "Checks!F2:F"
-          val checksCacheKeys: Task[List[HashedRangeCacheKey]] =
+          val checksCacheKeys: Task[List[HashedRangeCacheKey]] = {
+            def shouldRetry(th: Throwable) = th match {
+              case e @ RefinementError(v, _) if v == "#NAME?" || v == "Loading..." =>
+                logger.warnIO(s"Retrying to load hashes after error: $e").as(true)
+
+              case _ => ZIO.succeed(false)
+            }
+
+            val schedule = RetrySchedules.gapiCall <* Schedule.doWhileM(shouldRetry)
+
             getRawValues(checksHashesRange).map(_.map(_.asScala).flatten).flatMap { hashes =>
               ZIO.foreach(hashes) { hash =>
-                ZIO.fromEither(refineV[Sha1Refinement]("" + hash)).mapError(e => new IllegalArgumentException(s"Expected SHA1 but got $hash: $e"))
+                ZioUtils.refineIO[Sha1Refinement]("" + hash)
               }.map { hashes =>
                 hashes.zipWithIndex.map(elem => HashedRangeCacheKey(elem._1, elem._2))
               }
-            }
+            }.retry(schedule.provide(Clock.Live))
+          }
 
           val checks: Task[List[Check]] =
             checksCacheKeys.flatMap { cacheKeys =>
               ZIO.foreach(cacheKeys) { cacheKey =>
                 simpleCache.load(cacheKey) { cacheKey =>
-                  val range = cacheKey.range("Checks", "A", "E", 100, 1)
+                  val range = cacheKey.range("Checks", "A", "E", hashRows, 1)
                   val checksValues = getRawValues(range)
                   val checks: Task[Iterable[Check]] = checksValues.map { checksValues =>
                     checksValues.flatMap { row =>
@@ -158,7 +174,7 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: SheetId,
                   val nRows = sheetValues.get(sheetId, "Checks!A2:E").execute().getValues.size()
                   val colF = "Checks!F:F"
                   val colF2 = colF + "2"
-                  val headerValueRange = rowToValueRange("Sha1-100").setRange(colF)
+                  val headerValueRange = rowToValueRange(s"Sha1-$hashRows").setRange(colF)
                   val hashesValueRange = rowsToValueRange(Iterable.fill(nRows)(Iterable(checksHashFormula))).setRange(colF2)
                   val batchValuesUpdate = new BatchUpdateValuesRequest
                   batchValuesUpdate.setData(util.Arrays.asList(headerValueRange, hashesValueRange)).setValueInputOption("USER_ENTERED")

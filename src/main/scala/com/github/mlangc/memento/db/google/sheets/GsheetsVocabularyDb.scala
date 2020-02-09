@@ -223,6 +223,8 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: SheetId,
               synonyms2 = synonyms._2)
           }
         }
+        evicted <- simpleCache.evictNotRecentlyUsed
+        _ <- ZIO.when(evicted > 0)(logger.infoIO(s"$evicted cache entries evicted"))
       } yield data
     }.logDebugPerformance(d => s"Loading sheet took ${d.toMillis}ms", 100.millis).provide(modules)
 

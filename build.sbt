@@ -69,6 +69,7 @@ val refinedVersion = "0.9.10"
 val silencerVersion = "1.4.4"
 val log4jVersion = "2.13.0"
 val circeVersion = "0.12.3"
+val jmhVersion = "1.23"
 
 libraryDependencies += "dev.zio" %% "zio-interop-cats" % "2.0.0.0-RC7"
 libraryDependencies += "com.google.oauth-client" % "google-oauth-client-jetty" % "1.29.2"
@@ -81,6 +82,9 @@ libraryDependencies += "org.typelevel" %% "cats-effect" % "2.0.0"
 libraryDependencies += "io.circe" %% "circe-refined" % circeVersion
 libraryDependencies += "io.circe" %% "circe-generic" % circeVersion
 libraryDependencies += "io.circe" %% "circe-parser" % circeVersion
+
+libraryDependencies += "org.openjdk.jmh" % "jmh-core" % jmhVersion % Test
+libraryDependencies += "org.openjdk.jmh" % "jmh-generator-annprocess" % jmhVersion % Test
 
 libraryDependencies ++= Seq(
   "eu.timepit" %% "refined" % refinedVersion,
@@ -124,7 +128,14 @@ libraryDependencies += "com.outr" %% "hasher" % "1.2.2"
 
 testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
 
+enablePlugins(JmhPlugin)
 enablePlugins(BuildInfoPlugin)
+sourceDirectory in Jmh := (sourceDirectory in Test).value
+classDirectory in Jmh := (classDirectory in Test).value
+dependencyClasspath in Jmh := (dependencyClasspath in Test).value
+compile in Jmh := (compile in Jmh).dependsOn(compile in Test).value
+run in Jmh := (run in Jmh).dependsOn(Keys.compile in Jmh).evaluated
+
 buildInfoKeys := Seq[BuildInfoKey](
   name, version, scalaVersion, sbtVersion,
   BuildInfoKey("head" -> git.gitHeadCommit.value.getOrElse("???")),

@@ -25,7 +25,7 @@ import zio.clock.Clock
 import zio.system.System
 
 
-private[sheets] object GsheetsTestHelpers extends LoggingSupport {
+object GsheetsTestHelpers extends LoggingSupport {
   @volatile
   private var cache: Option[(Sheets, Drive)] = None
 

@@ -34,7 +34,7 @@ class LeitnerRepetitionScheme(boxSpecs: NonEmptyVector[BoxSpec] = BoxSpecs.defau
                               clock: Clock = Clock.systemDefaultZone()) extends RepetitionScheme with LoggingSupport {
 
   protected def implement(translations: NonEmptyVector[Translation],
-                          checks: List[Check]): Task[LeitnerRepetitionScheme.Impl] =
+                          checks: List[Check]): Task[LeitnerRepetitionScheme.Impl] = {
     for {
       now <- UIO(Instant.now(clock))
       deckStateRef <- Ref.make(initialDeckState(translations, checks, now))
@@ -65,6 +65,7 @@ class LeitnerRepetitionScheme(boxSpecs: NonEmptyVector[BoxSpec] = BoxSpecs.defau
         val getDeckState: UIO[DeckState] = deckStateRef.get
       }
     }
+  }.logDebugPerformance(d => s"${d.toMillis}ms for implementing ${getClass.getSimpleName}")
 
   private def initialDeckState(translations: NonEmptyVector[Translation],
                                checks: List[Check],

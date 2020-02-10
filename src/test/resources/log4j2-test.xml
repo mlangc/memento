@@ -7,6 +7,7 @@
     </Appenders>
     <Loggers>
         <Logger name="com.github.mlangc" level="debug"/>
+        <Logger name="com.github.mlangc.memento.trainer.repetition.leitner.LeitnerRepetitionScheme" level="info"/>
 
         <Root level="info">
             <AppenderRef ref="Console" />

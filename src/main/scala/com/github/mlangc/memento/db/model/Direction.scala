@@ -22,4 +22,10 @@ object Direction {
     case "RightToLeft" => Some(RightToLeft)
     case _ => None
   }
+
+  implicit val ordering: Ordering[Direction] = Ordering.by {
+    case LeftToRight => 0
+    case RightToLeft => 1
+  }
 }
+

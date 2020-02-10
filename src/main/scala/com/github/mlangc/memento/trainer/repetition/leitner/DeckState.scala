@@ -4,9 +4,8 @@ import java.time.Instant
 
 import cats.data.NonEmptyList
 import cats.data.NonEmptyVector
-import cats.instances.list._
 import cats.instances.map._
-import cats.kernel.Order
+import cats.instances.sortedSet._
 import cats.syntax.option._
 import cats.syntax.semigroup._
 import com.github.mlangc.memento.db.model.Check
@@ -14,15 +13,31 @@ import com.github.mlangc.memento.db.model.Direction
 import com.github.mlangc.memento.db.model.Translation
 import com.github.mlangc.memento.trainer.model.Card
 
+import scala.collection.View
+import scala.collection.immutable.SortedSet
 import scala.concurrent.duration.Duration
 import scala.math.max
 import scala.math.min
 
 class DeckState private(val timestamp: Instant,
                         val boxSpecs: NonEmptyVector[BoxSpec],
-                        val checks: List[Check],
-                        val cards: Map[Card, (CardState, BoxRef)],
-                        val boxes: Map[BoxRef, Set[Card]]) {
+                        private val cardChecks: Map[Card, SortedSet[Check]]) {
+  def checks: List[Check] =
+    cardChecks.values
+      .flatMap(_.toList)
+      .toSeq.sortBy(_.timestamp).toList
+
+  lazy val cards: Map[Card, (CardState, BoxRef)] =
+    cardChecks.view
+      .map { case (card, checks) =>
+        card -> processChecks(checks.view.takeWhile(!_.timestamp.isAfter(timestamp)))
+      }.toMap
+
+  def boxes: Map[BoxRef, Set[Card]] =
+    cards
+      .toSeq
+      .map { case (card, (_, boxRef)) => (boxRef, card) }
+      .groupMapReduce(_._1)(p => Set(p._2))(_ ++ _)
 
   def updateWith(check: Check): DeckStateUpdate =
     updateWith(Left(check))
@@ -30,7 +45,7 @@ class DeckState private(val timestamp: Instant,
   def recalculateAt(timestamp: Instant): DeckStateUpdate =
     updateWith(Right(timestamp))
 
-  private def updateWith(checkOrTimestamp: Either[Check, Instant]): DeckStateUpdate = {
+  def updateWith(checkOrTimestamp: Either[Check, Instant]): DeckStateUpdate = {
     val newTimestamp = checkOrTimestamp match {
       case Left(check) if (check.timestamp.isAfter(timestamp)) => check.timestamp
       case Right(ts) => ts
@@ -38,108 +53,62 @@ class DeckState private(val timestamp: Instant,
     }
 
     val maybeCheck = checkOrTimestamp.left.toOption
-    val effectiveChecks = maybeCheck.toList ::: checks.filterNot(_.timestamp.isAfter(newTimestamp))
-    val newCards = DeckState.processCards(cards.keySet, newTimestamp, effectiveChecks, boxSpecs)
-    val newBoxes = DeckState.boxesFor(newCards)
-
-    val changedCards = cards.keySet.filter { card =>
-      cards(card) != newCards(card)
+    val newCardChecks = cardChecks |+| {
+      maybeCheck.map { check =>
+        if (!cardChecks.contains(Card.fromCheck(check))) Map.empty[Card, SortedSet[Check]]
+        else Map(Card.fromCheck(check) -> SortedSet(check))
+      }.getOrElse(Map.empty)
     }
 
-    val newState = new DeckState(newTimestamp, boxSpecs, maybeCheck.toList ::: checks, newCards, newBoxes)
-    DeckStateUpdate(newState, changedCards)
-  }
-
-  override def toString: String = {
-    s"DeckState ${(timestamp, boxSpecs, cards)}"
-  }
-
-}
-
-object DeckState {
-  def init(translations: NonEmptyVector[Translation],
-           boxSpecs: NonEmptyVector[BoxSpec],
-           checks: NonEmptyList[Check]): DeckState = {
-    val checksOrdered = checks.sortBy(_.timestamp)(Order.fromComparable[Instant])
-    val initialState = init(translations, boxSpecs, checksOrdered.head.timestamp)
-    checksOrdered.foldLeft(initialState) { (state, check) =>
-      state.updateWith(check).newState
-    }
-  }
-
-  def init(translations: NonEmptyVector[Translation],
-           boxSpecs: NonEmptyVector[BoxSpec],
-           timestamp: Instant): DeckState = {
-    val cards = newCardsFor(translations.toVector, boxSpecs.head)
-    new DeckState(timestamp, boxSpecs, Nil, cards, boxesFor(cards))
-  }
-
-  private def processCards(cards: Set[Card],
-                           timestamp: Instant,
-                           checks: List[Check],
-                           boxSpecs: NonEmptyVector[BoxSpec])
-  : Map[Card, (CardState, BoxRef)] = {
-    def processChecksForCard(checks: List[Check]): (CardState, BoxRef) = {
-      val ((tmpCardState, boxSpecInd), lastTs) = checks
-        .foldLeft((CardState.New: CardState, 0) -> none[Instant]) { case (((oldState, boxInd), oldTimestamp), check) =>
-          val boxSpec = boxSpecs.getUnsafe(boxInd)
-          val timePassed = oldTimestamp.map(durationBetween(_, check.timestamp)).getOrElse(Duration.Zero)
-          val baseState = oldState match {
-            case CardState.Dormant if (timePassed >= boxSpec.interval) => CardState.Expired
-            case other => other
-          }
-
-          val baseStep = {
-            val diff = check.score.ordinal - boxSpec.minScore.ordinal
-            if (diff >= 0) diff + 1 else diff
-          }
-
-          val refinedBaseStep = baseState match {
-            case CardState.Dormant | CardState.Downgraded | CardState.New => min(0, baseStep)
-            case CardState.Expired => min(1, baseStep)
-          }
-
-          val newBoxInd = min(max(boxInd + refinedBaseStep, 0), boxSpecs.length - 1)
-          val newBoxSpec = boxSpecs.getUnsafe(newBoxInd)
-
-          val newState = if (baseStep < 0) CardState.Downgraded else {
-            if (newBoxSpec.interval > Duration.Zero) CardState.Dormant
-            else CardState.Expired
-          }
-
-          (newState, newBoxInd) -> Some(check.timestamp)
+    val newState = new DeckState(newTimestamp, boxSpecs, newCardChecks)
+    val affectedCards =
+      (newState.cards.keySet ++ cards.keySet).filter { card =>
+        newState.cards.get(card) != cards.get(card)
       }
 
-      val boxRef = BoxRef(boxSpecs.getUnsafe(boxSpecInd), boxSpecInd)
-      (lastTs, tmpCardState) match {
-        case (Some(lastTs), CardState.Dormant) if lastTs != timestamp =>
-          val timePassed = durationBetween(lastTs, timestamp)
-          if (timePassed >= boxRef.spec.interval) (CardState.Expired, boxRef)
-          else (tmpCardState, boxRef)
+    DeckStateUpdate(newState, affectedCards)
+  }
 
-        case _ => (tmpCardState, boxRef)
+  private def processChecks(checks: View[Check]): (CardState, BoxRef) = {
+    val ((tmpCardState, boxSpecInd), lastTs) = checks
+      .foldLeft((CardState.New: CardState, 0) -> none[Instant]) { case (((oldState, boxInd), oldTimestamp), check) =>
+        val boxSpec = boxSpecs.getUnsafe(boxInd)
+        val timePassed = oldTimestamp.map(durationBetween(_, check.timestamp)).getOrElse(Duration.Zero)
+        val baseState = oldState match {
+          case CardState.Dormant if (timePassed >= boxSpec.interval) => CardState.Expired
+          case other => other
+        }
+
+        val baseStep = {
+          val diff = check.score.ordinal - boxSpec.minScore.ordinal
+          if (diff >= 0) diff + 1 else diff
+        }
+
+        val refinedBaseStep = baseState match {
+          case CardState.Dormant | CardState.Downgraded | CardState.New => min(0, baseStep)
+          case CardState.Expired => min(1, baseStep)
+        }
+
+        val newBoxInd = min(max(boxInd + refinedBaseStep, 0), boxSpecs.length - 1)
+        val newBoxSpec = boxSpecs.getUnsafe(newBoxInd)
+
+        val newState = if (baseStep < 0) CardState.Downgraded else {
+          if (newBoxSpec.interval > Duration.Zero) CardState.Dormant
+          else CardState.Expired
+        }
+
+        (newState, newBoxInd) -> Some(check.timestamp)
       }
+
+    val boxRef = BoxRef(boxSpecs.getUnsafe(boxSpecInd), boxSpecInd)
+    (lastTs, tmpCardState) match {
+      case (Some(lastTs), CardState.Dormant) if lastTs != timestamp =>
+        val timePassed = durationBetween(lastTs, timestamp)
+        if (timePassed >= boxRef.spec.interval) (CardState.Expired, boxRef)
+        else (tmpCardState, boxRef)
+
+      case _ => (tmpCardState, boxRef)
     }
-
-    val checksForCard: Map[Card, List[Check]] = checks
-      .groupBy(check => Card(check.translation, check.direction)) |+| cards.map(_ -> List.empty[Check]).toMap
-
-    checksForCard
-      .view.filterKeys(cards.contains)
-      .toMap
-      .map { case (card, checks) => card -> processChecksForCard(normalizedAndSorted(checks)) }
-  }
-
-  private def normalizedAndSorted(checks: List[Check]): List[Check] = {
-    checks.distinct.sortBy(c => (c.timestamp, c.score.ordinal))
-  }
-
-  private def newCardsFor(translations: Iterable[Translation], boxSpec: BoxSpec): Map[Card, (CardState, BoxRef)] = {
-    val newInBox0 = CardState.New -> BoxRef(boxSpec, 0)
-
-    translations.flatMap { translation =>
-      Iterable(Card(translation, Direction.RightToLeft), Card(translation, Direction.LeftToRight))
-    }.map(card => card -> newInBox0).toMap
   }
 
   private def durationBetween(instant1: Instant, instant2: Instant): Duration = {
@@ -147,12 +116,34 @@ object DeckState {
     val nanoDiff = secDiff * 1000L * 1000L * 1000L + (instant2.getNano - instant1.getNano)
     Duration.fromNanos(nanoDiff)
   }
+}
 
-  private def boxesFor(cards: Map[Card, (CardState, BoxRef)]): Map[BoxRef, Set[Card]] = {
-    cards.toSeq
-      .map(entry => entry._2._2 -> entry._1)
-      .groupBy(_._1)
-      .view.mapValues(_.map(_._2).toSet)
-      .toMap
+object DeckState {
+  def init(translations: NonEmptyVector[Translation],
+           boxSpecs: NonEmptyVector[BoxSpec],
+           checks: NonEmptyList[Check]): DeckState = {
+    val timestamp = checks.toList.maxBy(_.timestamp).timestamp
+    val initialCards = cardChecksFrom(translations.toVector)
+
+    new DeckState(timestamp, boxSpecs, cardChecksFrom(initialCards, checks.toList))
   }
+
+  def init(translations: NonEmptyVector[Translation],
+           boxSpecs: NonEmptyVector[BoxSpec],
+           timestamp: Instant): DeckState = {
+    new DeckState(timestamp, boxSpecs, cardChecksFrom(translations.toVector))
+  }
+
+  private def cardChecksFrom(translations: Iterable[Translation]): Map[Card, SortedSet[Check]] =
+    translations.flatMap { translation =>
+      val card = Card(translation, Direction.RightToLeft)
+      List(card, card.flip)
+    }.map(_ -> SortedSet.empty[Check])
+      .toMap
+
+  private def cardChecksFrom(initialCards: Map[Card, SortedSet[Check]], checks: Iterable[Check]): Map[Card, SortedSet[Check]] =
+    initialCards |+| checks.filter(c => initialCards.contains(Card.fromCheck(c)))
+      .groupBy(Card.fromCheck)
+      .view.mapValues(vs => SortedSet.from(vs))
+      .toMap
 }

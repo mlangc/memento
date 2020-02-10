@@ -11,3 +11,8 @@ case class Card(translation: Translation, direction: Direction) {
 
   def flip: Card = Card(translation, direction.flip)
 }
+
+object Card {
+  def fromCheck(check: Check): Card =
+    Card(check.translation, check.direction)
+}

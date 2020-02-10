@@ -84,6 +84,7 @@ abstract class GenericRepetitionSchemeTest extends BaseZioTest with OptionValues
 
         for {
           impl <- implFor(trainingData)
+          _ <- impl.update(obsoleteCheck.copy(direction = obsoleteCheck.direction.flip))
           questions <- runSimulation(impl, 250)
           _ <- Task(assert(questions.map(_.toCard).toSet.size === 2))
         } yield ()

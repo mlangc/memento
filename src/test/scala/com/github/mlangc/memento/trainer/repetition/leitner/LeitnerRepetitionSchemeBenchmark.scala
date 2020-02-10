@@ -42,7 +42,11 @@ class LeitnerRepetitionSchemeBenchmark {
   @Benchmark
   def initScheme = zRun {
     val scheme = new LeitnerRepetitionScheme()
-    scheme.implement(data)
+
+    for {
+      scheme <- scheme.implement(data).someOrFail(new NoSuchElementException)
+      question <- scheme.next
+    } yield question
   }
 
   private def zRun[A](io: RIO[ZEnvs.AppEnv, A]): A =

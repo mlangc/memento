@@ -2,20 +2,20 @@ package com.github.mlangc.memento
 
 import org.scalactic.source.Position
 import org.scalatest.exceptions.TestCanceledException
-import zio.DefaultRuntime
 import zio.Exit
 import zio.FiberFailure
 import zio.Task
 import zio.ZEnv
 import zio.ZIO
+import zio.Runtime
 
-abstract class BaseZioTest extends BaseTest with DefaultRuntime {
+abstract class BaseZioTest extends BaseTest {
   protected class FreeSpecZioStringWrapper(string: String, position: Position) {
     private val impl = new FreeSpecStringWrapper(string, position)
 
     def inIO[E, A](zio: ZIO[ZEnv, E, A]): Unit = {
       impl.in {
-        unsafeRun(zio.run) match {
+        Runtime.default.unsafeRun(zio.run.provideLayer(ZEnv.live)) match {
           case Exit.Success(_) => ()
           case Exit.Failure(cause) =>
             cause.failureOption match {

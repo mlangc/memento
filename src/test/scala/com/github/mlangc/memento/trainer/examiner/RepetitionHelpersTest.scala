@@ -17,8 +17,8 @@ import zio.test.assert
 import zio.test.suite
 import zio.test.testM
 
-object RepetitionHelpersTest extends DefaultRunnableSpec(
-  suite("RepetitionHelpers")(
+object RepetitionHelpersTest extends DefaultRunnableSpec {
+  def spec = suite("RepetitionHelpers")(
     suite("avoidRepeatRelated")(
       testM("behaves as expected when applied to random ints") {
         val nReps = 1000
@@ -30,23 +30,21 @@ object RepetitionHelpersTest extends DefaultRunnableSpec(
         }
 
         for {
-          cycle <- RepetitionHelperTestUtil.RandomCycle.make(2000, 5)
+          cycle <- RandomCycle.make(2000, 5)
           randInts <- ZIO.foreach(0.to(3))(avoidRepeatRelated(cycle.iterator, _)(_ == _))
           ints <- ZIO.foreach(randInts)(r => repeat(r))
           reps = ints.map(countRepetitions)
-        } yield assert(reps, Assertion.equalTo(reps.sortBy(-_)))
+        } yield assert(reps)(Assertion.equalTo(reps.sortBy(-_)))
       } @@ nonFlaky(8),
       testM("properly deals with an effect that always returns 42") {
         for {
           io <- avoidRepeatRelated(ZIO.succeed(42))(_ == _)
           is <- ZIO.collectAll(Iterable.fill(42)(io))
-        } yield assert(is, Assertion.equalTo(List.fill(42)(42)))
+        } yield assert(is)(Assertion.equalTo(List.fill(42)(42)))
       }
     )
   )
-)
 
-object RepetitionHelperTestUtil {
   case class RandomCycle(start: Int, tail: IndexedSeq[Int]) {
     val iterator: UIO[UIO[Int]] = {
       Ref.make(0).map { ref =>
@@ -68,3 +66,4 @@ object RepetitionHelperTestUtil {
       } yield RandomCycle(start, tail)
   }
 }
+

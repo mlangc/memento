@@ -16,7 +16,7 @@ object GsheetsRangePrinter extends App with LoggingSupport {
     logger.infoIO(s"Grabbing ${cfg.ranges} from ${cfg.sheetId}...") *>
       GsheetsTestHelpers.withSheets { sheets =>
           sheets.spreadsheets().values().batchGetStringValues(cfg.sheetId, cfg.ranges)
-        }.logDebugPerformance(d => s"Grabbing values took ${d.toMillis}ms").flatMap { res =>
+        }.perfLog(LogSpec.onSucceed(d => debug"Grabbing values took ${d.toMillis}ms")).flatMap { res =>
         logger.infoIO("Done - printing results row by row:") *>
           ZIO.foreach_(cfg.ranges) { range =>
             logger.infoIO(s"  Range '$range':") *>

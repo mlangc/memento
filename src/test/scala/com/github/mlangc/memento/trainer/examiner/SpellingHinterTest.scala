@@ -5,6 +5,7 @@ import com.github.mlangc.memento.db.model.Spelling
 import com.github.mlangc.memento.trainer.model.Hint
 import eu.timepit.refined.auto._
 import zio.ZIO
+import zio.Runtime
 
 import scala.Ordering.Double.TotalOrdering
 
@@ -48,7 +49,7 @@ class SpellingHinterTest extends BaseZioTest {
   }
 
   private def takeHints(spelling: Spelling, n: Int): List[Hint] = {
-    unsafeRun {
+    Runtime.default.unsafeRun {
       for {
         hinter <- SpellingHinter.make(spelling)
         res <- ZIO.collectAll(Iterable.fill(n)(hinter.nextHint))

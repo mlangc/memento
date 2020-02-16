@@ -64,14 +64,16 @@ scalacOptions ++= Seq(
 scalacOptions in(Compile, console) --= Seq("-Ywarn-unused:imports", "-Xfatal-warnings")
 
 val catsVersion = "2.0.0"
-val zioVersion = "1.0.0-RC16"
+val zioVersion = "1.0.0-RC17+387-b8979ea4-SNAPSHOT"
+val slf4zioVersion = "0.4.0+17-0a3345d7-SNAPSHOT"
 val refinedVersion = "0.9.10"
 val silencerVersion = "1.4.4"
 val log4jVersion = "2.13.0"
 val circeVersion = "0.12.3"
 val jmhVersion = "1.23"
 
-libraryDependencies += "dev.zio" %% "zio-interop-cats" % "2.0.0.0-RC7"
+resolvers += Resolver.sonatypeRepo("snapshots")
+
 libraryDependencies += "com.google.oauth-client" % "google-oauth-client-jetty" % "1.29.2"
 libraryDependencies += "com.google.apis" % "google-api-services-sheets" % "v4-rev579-1.25.0"
 libraryDependencies += "com.google.apis" % "google-api-services-drive" % "v3-rev188-1.25.0" % Test
@@ -107,7 +109,7 @@ libraryDependencies += "com.statemachinesystems" % "mock-clock" % "1.0" % Test
 libraryDependencies += "info.debatty" % "java-string-similarity" % "1.2.1"
 libraryDependencies += "io.github.java-diff-utils" % "java-diff-utils" % "4.0"
 
-libraryDependencies += "com.github.mlangc" %% "slf4zio" % "0.3.0"
+libraryDependencies += "com.github.mlangc" %% "slf4zio" % slf4zioVersion
 libraryDependencies += "org.jline" % "jline-reader" % "3.12.1"
 
 libraryDependencies += "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4jVersion

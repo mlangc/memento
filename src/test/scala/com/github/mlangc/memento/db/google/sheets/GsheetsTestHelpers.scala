@@ -16,6 +16,7 @@ import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.SheetsScopes
 import eu.timepit.refined.auto._
 import eu.timepit.refined.refineV
+import zio.Has
 import zio.RIO
 import zio.UIO
 import zio.ZManaged
@@ -55,7 +56,7 @@ object GsheetsTestHelpers extends LoggingSupport {
   def withSheets[R, E, A](f: Sheets => RIO[R, A]): RIO[R with Blocking, A] =
     sheetsAndDrive.flatMap { case (sheets, _) => f(sheets) }
 
-  def initDb(sheetId: SheetId): RIO[CacheModule with Blocking with System with Clock, GsheetsVocabularyDb] =
+  def initDb(sheetId: SheetId): RIO[Has[CacheModule] with Blocking with System with Clock, GsheetsVocabularyDb] =
     TestCfg.tokensDir.zip(TestCfg.cacheDir).flatMap { case (tokensDir, cacheDir) =>
       GsheetsVocabularyDb.make(sheetId, tokensDir, cacheDir)
     }

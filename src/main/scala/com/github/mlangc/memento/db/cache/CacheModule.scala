@@ -2,6 +2,8 @@ package com.github.mlangc.memento.db.cache
 
 import java.io.File
 
+import zio.Has
+import zio.ZLayer
 import zio.ZManaged
 import zio.blocking.Blocking
 
@@ -11,8 +13,7 @@ trait CacheModule {
 }
 
 object CacheModule {
-  trait Live extends CacheModule {
-    def makeSimpleCache(cacheDir: File): ZManaged[Blocking, Throwable, SimpleCache] =
-      SimpleOnDiskCache.make(cacheDir)
+  val live: ZLayer.NoDeps[Nothing, Has[CacheModule]] = ZLayer.succeed {
+    (cacheDir: File) => SimpleOnDiskCache.make(cacheDir)
   }
 }

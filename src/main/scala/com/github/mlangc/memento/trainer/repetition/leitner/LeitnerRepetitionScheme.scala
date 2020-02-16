@@ -52,7 +52,7 @@ class LeitnerRepetitionScheme(boxSpecs: NonEmptyVector[BoxSpec] = BoxSpecs.defau
         val status: Task[RepetitionStatus] =
           for {
             now <- UIO(Instant.now(clock))
-            deckState <- deckStateRef.update(_.recalculateAt(now).newState)
+            deckState <- deckStateRef.updateAndGet(_.recalculateAt(now).newState)
             status = {
               val cardsLeft = deckState.cards.count(_._2._1.shouldBeTested)
               refineV[Positive](cardsLeft) match {
@@ -65,7 +65,7 @@ class LeitnerRepetitionScheme(boxSpecs: NonEmptyVector[BoxSpec] = BoxSpecs.defau
         val getDeckState: UIO[DeckState] = deckStateRef.get
       }
     }
-  }.logDebugPerformance(d => s"${d.toMillis}ms for implementing ${getClass.getSimpleName}")
+  }.perfLog(LogSpec.onSucceed(d => debug"${d.render} for implementing ${getClass.getSimpleName}"))
 
   private def initialDeckState(translations: NonEmptyVector[Translation],
                                checks: List[Check],

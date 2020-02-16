@@ -12,7 +12,7 @@ import zio.ZIO
 import zio.ZManaged
 import zio.blocking.Blocking
 
-class SimpleOnDiskCache private (cacheDir: File, blocking: Blocking.Service[Any], usedRef: Ref[Set[CacheKey]]) extends SimpleCache {
+class SimpleOnDiskCache private (cacheDir: File, blocking: Blocking.Service, usedRef: Ref[Set[CacheKey]]) extends SimpleCache {
   import blocking._
 
   def load[R, K: Keyable, A: Cachable](k: K)(f: K => RIO[R, A]): RIO[R, A] = {
@@ -91,6 +91,6 @@ object SimpleOnDiskCache {
       blocking <- ZIO.access[Blocking](identity)
       usedRef <- Ref.make(Set.empty[CacheKey])
       _ <- ZIO.whenM(Task(!cacheDir.exists()))(Task(FileUtils.forceMkdir(cacheDir)))
-    } yield new SimpleOnDiskCache(cacheDir, blocking.blocking, usedRef)
+    } yield new SimpleOnDiskCache(cacheDir, blocking.get, usedRef)
   }.toManaged_
 }

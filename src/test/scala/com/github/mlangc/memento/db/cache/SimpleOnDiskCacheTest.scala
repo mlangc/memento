@@ -13,13 +13,13 @@ class SimpleOnDiskCacheTest extends SimpleCacheTest {
   def simpleCache: Managed[Throwable, SimpleCache] =
     for {
       dir <- TmpTestDir.make
-      cache <- SimpleOnDiskCache.make(dir).provide(Blocking.Live)
+      cache <- SimpleOnDiskCache.make(dir).provideLayer(Blocking.live)
     } yield cache
 
   "Verify eviction of not recently used entries" inIO {
-    MockLoader.make[Int, Int, Nothing](ZIO.succeed).flatMap { loader =>
+    MockLoader.make[Int, Int, Nothing](a => ZIO.succeed(a)).flatMap { loader =>
       TmpTestDir.make.use { testDir =>
-        val testCache = SimpleOnDiskCache.make(testDir).provide(Blocking.Live)
+        val testCache = SimpleOnDiskCache.make(testDir).provideLayer(Blocking.live)
 
         testCache.use { cache =>
           for {

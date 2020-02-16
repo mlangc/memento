@@ -27,7 +27,6 @@ import zio.ZIO
 import zio.blocking.Blocking
 import zio.blocking.effectBlocking
 
-import scala.concurrent.duration.DurationInt
 import scala.jdk.CollectionConverters._
 
 object GsheetsUtils extends LoggingSupport {
@@ -54,7 +53,7 @@ object GsheetsUtils extends LoggingSupport {
             throw new ErrorMessage(s"$errTitle\n$errMsg\n$checkMsg", gre)
         }
 
-      }.logDebugPerformance(d => s"grabbing values for '$range' took ${d.toMillis}ms", 20.millis)
+      }.perfLog(LogSpec.onSucceed(d => debug"grabbing values for '$range' took ${d.render}"))
 
     def getStringValues(sheetId: SheetId, range: String): RIO[Blocking, Iterable[Iterable[String]]] =
       getRawValues(sheetId, range).map(_.map(_.asScala.map(String.valueOf)))

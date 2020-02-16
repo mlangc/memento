@@ -25,6 +25,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import zio.IO
 import zio.Task
 import zio.UIO
+import zio.Runtime
 
 import scala.concurrent.duration._
 
@@ -137,7 +138,7 @@ class LeitnerRepetitionSchemeTest extends GenericRepetitionSchemeTest with Scala
 
       "making sure that dormant questions are not asked unless needed" in {
         forAll(schemeImplWithMockClockGen) { schemeImplWithMockClock =>
-          unsafeRun {
+          Runtime.default.unsafeRun {
             schemeImplWithMockClock.flatMap {
               case None => IO.unit
               case Some((impl, clock)) =>
@@ -182,7 +183,7 @@ class LeitnerRepetitionSchemeTest extends GenericRepetitionSchemeTest with Scala
 
       "make sure that signals that `shouldStop` as soon as all questions are dormant" in {
         forAll(schemeImplWithMockClockGen) { implWithMockGen =>
-          unsafeRun {
+          Runtime.default.unsafeRun {
             implWithMockGen.flatMap {
               case None => IO.unit
               case Some((impl, clock)) =>

@@ -3,9 +3,7 @@ package com.github.mlangc.memento.trainer.examiner
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 
-import cats.instances.option._
 import cats.syntax.option._
-import cats.syntax.traverse._
 import com.github.mlangc.memento.db.VocabularyDb
 import com.github.mlangc.memento.db.model.Check
 import com.github.mlangc.memento.db.model.VocabularyData
@@ -18,13 +16,14 @@ import eu.timepit.refined.collection.NonEmpty
 import zio.Managed
 import zio.Queue
 import zio.Ref
+import zio.Schedule
 import zio.Semaphore
 import zio.Task
 import zio.UIO
-import zio.ZSchedule
+import zio.ZIO
 import zio.clock.Clock
 import zio.duration.Duration
-import zio.interop.catz._
+import zio.scheduler.Scheduler
 
 object DefaultExaminer {
   private case class ExamState(lastQuestion: Option[Question] = None,
@@ -80,7 +79,7 @@ class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner with 
                   feedback = answer.map(giveFeedback(question, trainingData.synonyms))
                   check <- safeFeedback(question, feedback, queue)
                   _ <- examStateRef.update(updateExamState(question, answer, hinter, check))
-                  _ <- check.traverse(schemeImpl.update)
+                  _ <- ZIO.foreach(check)(schemeImpl.update)
                 } yield (question, feedback)
               }
             }.some // it should be possible to use traverse here
@@ -107,14 +106,14 @@ class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner with 
       } yield false
     }
 
-    val retrySchedule: ZSchedule[Clock, Boolean, Unit] = {
-      ZSchedule.doUntil[Boolean](identity) &&
-        (ZSchedule.exponential(Duration(250, TimeUnit.MILLISECONDS)) ||
-          ZSchedule.spaced(Duration(10, TimeUnit.SECONDS)))
+    val retrySchedule: Schedule[Clock, Boolean, Unit] = {
+      Schedule.doUntil[Boolean](identity) &&
+        (Schedule.exponential(Duration(250, TimeUnit.MILLISECONDS)) ||
+          Schedule.spaced(Duration(10, TimeUnit.SECONDS)))
     }.unit
 
 
-    tryAddCheck.repeat(retrySchedule).provide(Clock.Live).unit
+    tryAddCheck.repeat(retrySchedule).provideLayer(Scheduler.live >>> Clock.live).unit
   }
 
   private def updateExamState(question: Question,
@@ -134,7 +133,7 @@ class DefaultExaminer(repetitionScheme: RepetitionScheme) extends Examiner with 
     state match {
       case ExamState(Some(lastQuestion), Some(Answer.NeedHint), _, _) =>
         for {
-          spellingHinter <- state.spellingHinter.map(Task.succeed).getOrElse {
+          spellingHinter <- ZIO.fromOption(state.spellingHinter).orElse {
             SpellingHinter.make(lastQuestion.rightAnswer.spelling)
           }
           nextQuestion <- spellingHinter.nextHint.map(hint => lastQuestion.copy(hint = Some(hint)))

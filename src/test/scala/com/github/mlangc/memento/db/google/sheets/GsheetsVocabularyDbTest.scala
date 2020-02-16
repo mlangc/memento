@@ -7,7 +7,7 @@ import com.github.mlangc.memento.db.VocabularyDb
 import com.github.mlangc.memento.db.google.sheets.GsheetsUtils.ValuesOps
 import com.github.mlangc.memento.db.model.Synonym
 import com.github.mlangc.memento.db.model.Translation
-import com.github.mlangc.memento.zenvs.ZEnvs
+import com.github.mlangc.memento.zenvs.ZLayers
 import eu.timepit.refined.auto._
 import zio.Managed
 import zio.RIO
@@ -77,5 +77,5 @@ class GsheetsVocabularyDbTest extends GenericVocabularyDbTest {
     initDb(TestSheetIds.Simple).toManaged_
 
   private def initDb(sheetId: SheetId): Task[GsheetsVocabularyDb] =
-    GsheetsTestHelpers.initDb(sheetId).provide(ZEnvs.live)
+    GsheetsTestHelpers.initDb(sheetId).provideLayer(ZLayers.live)
 }

@@ -4,7 +4,7 @@ import java.util.concurrent.TimeUnit
 
 import com.github.mlangc.memento.db.google.sheets.GsheetsTestHelpers
 import com.github.mlangc.memento.trainer.model.TrainingData
-import com.github.mlangc.memento.zenvs.ZEnvs
+import com.github.mlangc.memento.zenvs.ZLayers
 import eu.timepit.refined.auto._
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
@@ -16,7 +16,7 @@ import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.Warmup
-import zio.DefaultRuntime
+import zio.Runtime
 import zio.RIO
 import zio.UIO
 
@@ -27,7 +27,6 @@ import zio.UIO
 @Fork(1)
 @Measurement(iterations = 3)
 class LeitnerRepetitionSchemeBenchmark {
-  private val zioRt = new DefaultRuntime {}
   private var data: TrainingData = _
 
   @Setup
@@ -49,6 +48,6 @@ class LeitnerRepetitionSchemeBenchmark {
     } yield question
   }
 
-  private def zRun[A](io: RIO[ZEnvs.AppEnv, A]): A =
-    zioRt.unsafeRun(io.provide(ZEnvs.live))
+  private def zRun[A](io: RIO[ZLayers.AppEnv, A]): A =
+    Runtime.default.unsafeRun(io.provideLayer(ZLayers.live))
 }

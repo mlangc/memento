@@ -22,6 +22,7 @@ import eu.timepit.refined.auto._
 import eu.timepit.refined.numeric.Positive
 import eu.timepit.refined.refineV
 import eu.timepit.refined.types.numeric.PosInt
+import zio.Has
 import zio.RIO
 import zio.Schedule
 import zio.Task
@@ -30,14 +31,13 @@ import zio.blocking.Blocking
 import zio.blocking.effectBlocking
 import zio.clock.Clock
 
-import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
 import scala.util.Try
 
 private[sheets] class GsheetsVocabularyDb private(sheetId: SheetId,
                                                   @silent("never used") cacheDir: File,
                                                   sheets: Sheets,
-                                                  modules: Blocking with Clock with CacheModule)
+                                                  modules: Blocking with Clock with Has[CacheModule])
   extends VocabularyDb with LoggingSupport {
 
   private def hashStride: PosInt = 1000
@@ -45,7 +45,7 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: SheetId,
   private val defaultRetrySchedule = RetrySchedules.gapiCall()
 
   def load: Task[VocabularyData] =
-    modules.makeSimpleCache(cacheDir).use { simpleCache =>
+    modules.get[CacheModule].makeSimpleCache(cacheDir).use { simpleCache =>
       for {
         spreadsheets <- Task(sheets.spreadsheets())
         sheetValues <- Task(spreadsheets.values())
@@ -226,7 +226,7 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: SheetId,
         evicted <- simpleCache.evictNotRecentlyUsed
         _ <- ZIO.when(evicted > 0)(logger.infoIO(s"$evicted cache entries evicted"))
       } yield data
-    }.logDebugPerformance(d => s"Loading sheet took ${d.toMillis}ms", 100.millis).provide(modules)
+    }.perfLog(LogSpec.onSucceed(d => debug"Loading sheet took ${d.toMillis}ms")).provide(modules)
 
   def addCheck(check: Check): Task[Unit] =
     sheets.spreadsheets().values().appendRow(sheetId, "Checks!A2:F")(
@@ -236,7 +236,7 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: SheetId,
       check.score.toString,
       check.timestamp.toString,
       hashFormula
-    ).logDebugPerformance(d => s"Updating sheet took ${d.toMillis}ms", 10.millis)
+    ).perfLog(LogSpec.onSucceed(d => debug"Updating sheet took ${d.render}"))
       .provide(modules)
 
 
@@ -251,12 +251,12 @@ private[sheets] class GsheetsVocabularyDb private(sheetId: SheetId,
 }
 
 object GsheetsVocabularyDb {
-  def make(cfg: GsheetsCfg): RIO[CacheModule with Blocking with Clock, GsheetsVocabularyDb] =
+  def make(cfg: GsheetsCfg): RIO[Has[CacheModule] with Blocking with Clock, GsheetsVocabularyDb] =
     make(cfg.sheetId, new File(cfg.tokensPath), new File(cfg.cachePath))
 
-  def make(sheetId: SheetId, tokensDir: File, cachePath: File): RIO[CacheModule with Blocking with Clock, GsheetsVocabularyDb] =
+  def make(sheetId: SheetId, tokensDir: File, cachePath: File): RIO[Has[CacheModule] with Blocking with Clock, GsheetsVocabularyDb] =
     GsheetsService.make(tokensDir).flatMap { service =>
-      ZIO.access[Blocking with CacheModule with Clock](modules => new GsheetsVocabularyDb(sheetId, cacheDirFor(cachePath, sheetId), service, modules))
+      ZIO.access[Blocking with Has[CacheModule] with Clock](modules => new GsheetsVocabularyDb(sheetId, cacheDirFor(cachePath, sheetId), service, modules))
     }.mapError {
       case fnf: FileNotFoundException =>
         new ErrorMessage(s"Please verify your configuration:\n  ${fnf.getMessage}", fnf)
